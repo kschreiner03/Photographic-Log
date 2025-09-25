@@ -1,0 +1,5 @@
+{
+  "name": "Photographic Log Editor",
+  "description": "An interactive web application to create and edit photographic logs, allowing users to update project details, upload images, and edit photo descriptions, mirroring a professional document format.",
+  "requestFramePermissions": []
+}
