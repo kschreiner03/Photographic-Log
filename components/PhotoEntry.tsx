@@ -159,19 +159,19 @@ const PhotoEntry: React.FC<PhotoEntryProps> = ({ data, onDataChange, onImageChan
                 </div>
                 {/* Right Column: Image */}
                 <div className="flex items-center justify-center md:col-span-2">
-                    <div className={`w-full aspect-[4/3] rounded-lg border-2 border-dashed flex items-center justify-center relative bg-gray-50 overflow-hidden transition-colors duration-300 ${isImageInvalid ? 'border-red-500' : 'border-gray-300'}`}>
+                    <div className={`w-full rounded-lg flex items-center justify-center relative overflow-hidden transition-colors duration-300 ${isImageInvalid ? 'ring-2 ring-red-500 ring-inset' : ''}`}>
                         <input
                             type="file"
-                            accept="image/*"
+                            accept="image/jpeg, image/png"
                             onChange={handleFileChange}
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                             aria-label="Upload image"
                             disabled={printable}
                         />
                         {data.imageUrl ? (
-                            <img src={data.imageUrl} alt="Uploaded" className="w-full h-full object-contain bg-gray-100" />
+                            <img src={data.imageUrl} alt="Uploaded" className="object-contain max-w-full max-h-[350px]" />
                         ) : (
-                            <div className="text-center text-gray-500 p-4">
+                            <div className="text-center text-gray-500 p-4 h-[350px] w-full flex flex-col justify-center items-center">
                                 <CameraIcon className="mx-auto h-20 w-20 text-gray-400"/>
                                 <p className="mt-2 text-base font-bold">Click or drag to upload an image</p>
                             </div>

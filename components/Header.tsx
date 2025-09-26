@@ -29,8 +29,8 @@ const EditableField: React.FC<{ label: string; value: string; onChange: (value: 
     if (isPrintable) {
         return (
             <div className="flex items-baseline gap-1">
-                <span className="text-sm font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</span>
-                <span className="text-sm font-normal text-black">{value || '\u00A0'}</span>
+                <span className="text-lg font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</span>
+                <span className="text-lg font-normal text-black">{value || '\u00A0'}</span>
             </div>
         );
     }
@@ -61,11 +61,11 @@ const EditableField: React.FC<{ label: string; value: string; onChange: (value: 
             }
         };
         
-        const selectClasses = `p-1 w-full border-b-2 focus:outline-none focus:border-cyan-600 transition duration-200 bg-transparent text-base font-normal text-black ${isInvalid ? 'border-red-500' : 'border-gray-300'}`;
+        const selectClasses = `p-1 w-full border-b-2 focus:outline-none focus:border-cyan-600 transition duration-200 bg-transparent text-lg font-normal text-black ${isInvalid ? 'border-red-500' : 'border-gray-300'}`;
 
         return (
             <div className="flex items-baseline gap-2">
-                <label className="text-base font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</label>
+                <label className="text-lg font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</label>
                 <div className="flex gap-2 w-full">
                     <select value={month} onChange={(e) => handleDateChange('month', e.target.value)} className={selectClasses}>
                         <option value="" disabled>Month</option>
@@ -86,12 +86,12 @@ const EditableField: React.FC<{ label: string; value: string; onChange: (value: 
 
     return (
         <div className="flex items-baseline gap-2">
-            <label className="text-base font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</label>
+            <label className="text-lg font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</label>
             <input 
                 type="text" 
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className={`p-1 w-full border-b-2 focus:outline-none focus:border-cyan-600 transition duration-200 bg-transparent text-base font-normal text-black ${isInvalid ? 'border-red-500' : 'border-gray-300'}`}
+                className={`p-1 w-full border-b-2 focus:outline-none focus:border-cyan-600 transition duration-200 bg-transparent text-lg font-normal text-black ${isInvalid ? 'border-red-500' : 'border-gray-300'}`}
             />
         </div>
     );

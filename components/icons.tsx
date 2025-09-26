@@ -42,3 +42,17 @@ export const CloseIcon: React.FC<{ className?: string }> = ({ className = "h-7 w
         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
     </svg>
 );
+
+export const SaveIcon: React.FC<{ className?: string }> = ({ className = "h-7 w-7" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 3.75V16.5a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 16.5V3.75m13.5 0-3-3m0 0-3 3m3-3v12.75" />
+        <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+        <path d="M15.91 15.91a2.25 2.25 0 0 1-3.182 0l-3.53-3.53a2.25 2.25 0 0 1 0-3.182l.53-.53a2.25 2.25 0 0 1 3.182 0l3.53 3.53a2.25 2.25 0 0 1 0 3.182l-.53.53Z" />
+    </svg>
+);
+
+export const FolderOpenIcon: React.FC<{ className?: string }> = ({ className = "h-7 w-7" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m-1.125 9.75h5.625c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9H8.25a3.375 3.375 0 0 0-3.375 3.375v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125" />
+    </svg>
+);
