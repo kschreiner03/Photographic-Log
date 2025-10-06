@@ -16,21 +16,21 @@ interface PhotoEntryProps {
 }
 
 const EditableField: React.FC<{ label: string; value: string; onChange: (value: string) => void; isTextArea?: boolean; type?: 'text' | 'date', printable?: boolean; isInvalid?: boolean; readOnly?: boolean }> = ({ label, value, onChange, isTextArea = false, type = 'text', printable = false, isInvalid = false, readOnly = false }) => {
-    const commonClasses = "p-1 w-full bg-transparent focus:outline-none transition duration-200 text-lg font-normal text-black";
+    const commonClasses = "p-1 w-full bg-transparent focus:outline-none transition duration-200 text-base font-normal text-black min-w-0";
 
     if (printable) {
         if (isTextArea) {
             return (
                 <div>
-                    <label className="block text-lg font-bold text-black">{label}:</label>
-                    <p className="mt-1 text-lg font-normal text-black whitespace-pre-wrap">{value || '\u00A0'}</p>
+                    <label className="block text-base font-bold text-black">{label}:</label>
+                    <p className="mt-1 text-base font-normal text-black whitespace-pre-wrap">{value || '\u00A0'}</p>
                 </div>
             );
         }
         return (
             <div className="flex items-baseline gap-2">
-                <span className="block text-lg font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</span>
-                <span className="text-lg font-normal text-black">{value || '\u00A0'}</span>
+                <span className="block text-base font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</span>
+                <span className="text-base font-normal text-black break-words">{value || '\u00A0'}</span>
             </div>
         );
     }
@@ -38,8 +38,8 @@ const EditableField: React.FC<{ label: string; value: string; onChange: (value: 
     if (readOnly) {
         return (
             <div className="flex items-baseline gap-2">
-                <label className="block text-lg font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</label>
-                <span className="p-1 w-full text-lg font-normal text-black">{value}</span>
+                <label className="block text-base font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</label>
+                <span className="p-1 w-full text-base font-normal text-black">{value}</span>
             </div>
         );
     }
@@ -47,7 +47,8 @@ const EditableField: React.FC<{ label: string; value: string; onChange: (value: 
     if (type === 'date') {
         const [month, day, year] = React.useMemo(() => {
             if (!value || typeof value !== 'string') return ['', '', ''];
-            const parts = value.split(' ');
+            const cleanedValue = value.replace(',', '');
+            const parts = cleanedValue.split(' ').filter(Boolean);
             return [parts[0] || '', parts[1] || '', parts[2] || ''];
         }, [value]);
 
@@ -62,17 +63,17 @@ const EditableField: React.FC<{ label: string; value: string; onChange: (value: 
             if (part === 'year') newDate.year = newValue;
 
             if (newDate.month && newDate.day && newDate.year) {
-                onChange(`${newDate.month} ${newDate.day} ${newDate.year}`);
+                onChange(`${newDate.month} ${newDate.day}, ${newDate.year}`);
             } else {
                 onChange([newDate.month, newDate.day, newDate.year].filter(Boolean).join(' '));
             }
         };
 
-        const selectClasses = `${commonClasses} border-b-2 ${isInvalid ? 'border-red-500' : 'border-gray-300'} focus:border-cyan-600`;
+        const selectClasses = `${commonClasses} border-b-2 ${isInvalid ? 'border-red-500' : 'border-gray-300'} focus:border-[#007D8C]`;
 
         return (
             <div className="flex items-baseline gap-2">
-                <label className="block text-lg font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</label>
+                <label className="block text-base font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</label>
                 <div className="flex gap-2 w-full">
                     <select value={month} onChange={(e) => handleDateChange('month', e.target.value)} className={selectClasses}>
                         <option value="" disabled>Month</option>
@@ -95,7 +96,7 @@ const EditableField: React.FC<{ label: string; value: string; onChange: (value: 
         // Description field (stacked layout)
         return (
             <div>
-                <label className="block text-lg font-bold text-black">{label}:</label>
+                <label className="block text-base font-bold text-black">{label}:</label>
                 <textarea
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
@@ -108,7 +109,7 @@ const EditableField: React.FC<{ label: string; value: string; onChange: (value: 
     
     return (
         <div className="flex items-baseline gap-2">
-            <label className="block text-lg font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</label>
+            <label className="block text-base font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</label>
             <input
                 type="text"
                 value={value}
@@ -132,7 +133,7 @@ const PhotoEntry: React.FC<PhotoEntryProps> = ({ data, onDataChange, onImageChan
 
     return (
         <div className="bg-white p-6 shadow-md rounded-lg break-inside-avoid">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:items-start">
                 {/* Left Column: Information */}
                 <div className="flex flex-col space-y-4 md:col-span-1 min-w-0">
                      <div className="flex justify-between items-center">
@@ -169,9 +170,9 @@ const PhotoEntry: React.FC<PhotoEntryProps> = ({ data, onDataChange, onImageChan
                             disabled={printable}
                         />
                         {data.imageUrl ? (
-                            <img src={data.imageUrl} alt="Uploaded" className="object-contain max-w-full max-h-[350px]" />
+                            <img src={data.imageUrl} alt="Uploaded" className="object-contain max-w-full max-h-[280px]" />
                         ) : (
-                            <div className="text-center text-gray-500 p-4 h-[350px] w-full flex flex-col justify-center items-center">
+                            <div className="text-center text-gray-500 p-4 h-[280px] w-full flex flex-col justify-center items-center">
                                 <CameraIcon className="mx-auto h-20 w-20 text-gray-400"/>
                                 <p className="mt-2 text-base font-bold">Click or drag to upload an image</p>
                             </div>

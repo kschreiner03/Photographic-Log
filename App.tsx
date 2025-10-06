@@ -1,401 +1,570 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import PhotoEntry from './components/PhotoEntry';
 import type { HeaderData, PhotoData } from './types';
-import { PlusIcon, DownloadIcon, CloseIcon, SaveIcon, FolderOpenIcon } from './components/icons';
+import { PlusIcon, DownloadIcon, SaveIcon, FolderOpenIcon, CloseIcon } from './components/icons';
 
+// @ts-ignore
+const { jsPDF } = window.jspdf;
 
-declare const html2canvas: any;
-declare const jspdf: any;
-
-// A type guard to check if an object is a valid PhotoData object
-const isPhotoData = (obj: any): obj is PhotoData => {
-  return typeof obj === 'object' && obj !== null &&
-         'id' in obj && typeof obj.id === 'number' &&
-         'photoNumber' in obj && typeof obj.photoNumber === 'string' &&
-         'date' in obj && typeof obj.date === 'string' &&
-         'location' in obj && typeof obj.location === 'string' &&
-         'description' in obj && typeof obj.description === 'string' &&
-         'imageUrl' in obj;
+// Helper function to get image dimensions asynchronously
+const getImageDimensions = (url: string): Promise<{ width: number; height: number }> => {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve({ width: img.width, height: img.height });
+        img.onerror = (err) => reject(err);
+        img.src = url;
+    });
 };
 
-// A type guard to check if an object is a valid HeaderData object
-const isHeaderData = (obj: any): obj is HeaderData => {
-  return typeof obj === 'object' && obj !== null &&
-         'proponent' in obj && typeof obj.proponent === 'string' &&
-         'projectName' in obj && typeof obj.projectName === 'string' &&
-         'location' in obj && typeof obj.location === 'string' &&
-         'date' in obj && typeof obj.date === 'string' &&
-         'projectNumber' in obj && typeof obj.projectNumber === 'string';
-};
-
-
-const initialHeaderData: HeaderData = {
-    proponent: '',
-    projectName: '',
-    location: '',
-    date: '',
-    projectNumber: '',
-};
-
-const initialPhotoData: PhotoData[] = [];
 
 const App: React.FC = () => {
-    const [headerData, setHeaderData] = useState<HeaderData>(initialHeaderData);
-    const [photos, setPhotos] = useState<PhotoData[]>(initialPhotoData);
-    const [isSaving, setIsSaving] = useState(false);
-    const [showPreview, setShowPreview] = useState(false);
-    const [previewContent, setPreviewContent] = useState<string[]>([]);
-    const [errors, setErrors] = useState<{ header: Set<keyof HeaderData>, photos: Map<number, Set<keyof PhotoData>> }>({ header: new Set(), photos: new Map() });
-    const projectUploadRef = useRef<HTMLInputElement>(null);
+    const [headerData, setHeaderData] = useState<HeaderData>({
+        proponent: '',
+        projectName: '',
+        location: '',
+        date: '',
+        projectNumber: '',
+    });
+
+    const [photosData, setPhotosData] = useState<PhotoData[]>([]);
+    
+    const [errors, setErrors] = useState(new Set<string>());
+    const [showUnsupportedFileModal, setShowUnsupportedFileModal] = useState<boolean>(false);
+    const [showValidationErrorModal, setShowValidationErrorModal] = useState<boolean>(false);
 
     useEffect(() => {
-        const photoDataWithNumbers = photos.map((photo, index) => ({
-            ...photo,
-            photoNumber: String(index + 1),
-        }));
-        if (JSON.stringify(photos) !== JSON.stringify(photoDataWithNumbers)) {
-            setPhotos(photoDataWithNumbers);
+        if (showUnsupportedFileModal || showValidationErrorModal) {
+            // Using a direct MP3 link for the "sad trombone" sound effect.
+            const soundUrl = 'https://www.myinstants.com/media/sounds/sadtrombone.swf.mp3';
+            const audio = new Audio(soundUrl);
+            audio.play().catch(error => {
+                // Autoplay can be blocked by browsers, so we log errors.
+                console.error("Audio playback failed:", error);
+            });
         }
-    }, [photos.length]);
+    }, [showUnsupportedFileModal, showValidationErrorModal]);
 
     const handleHeaderChange = (field: keyof HeaderData, value: string) => {
         setHeaderData(prev => ({ ...prev, [field]: value }));
     };
 
     const handlePhotoDataChange = (id: number, field: keyof Omit<PhotoData, 'id' | 'imageUrl'>, value: string) => {
-        setPhotos(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+        setPhotosData(prev => prev.map(photo => photo.id === id ? { ...photo, [field]: value } : photo));
+    };
+    
+    const autoCropImage = (imageUrl: string): Promise<string> => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    resolve(imageUrl); // Fallback
+                    return;
+                }
+    
+                const targetAspectRatio = 4 / 3;
+                const originalAspectRatio = img.width / img.height;
+    
+                // Use a standard high-res canvas for quality
+                const canvasWidth = 1024;
+                const canvasHeight = 768; // 1024 / (4/3)
+    
+                canvas.width = canvasWidth;
+                canvas.height = canvasHeight;
+    
+                // Fill canvas with white background
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+                let drawWidth, drawHeight, drawX, drawY;
+    
+                if (originalAspectRatio > targetAspectRatio) {
+                    // Image is wider than 4:3 (needs letterboxing)
+                    drawWidth = canvas.width;
+                    drawHeight = drawWidth / originalAspectRatio;
+                    drawX = 0;
+                    drawY = (canvas.height - drawHeight) / 2;
+                } else {
+                    // Image is narrower than 4:3 (needs pillarboxing)
+                    drawHeight = canvas.height;
+                    drawWidth = drawHeight * originalAspectRatio;
+                    drawY = 0;
+                    drawX = (canvas.width - drawWidth) / 2;
+                }
+    
+                ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+    
+                resolve(canvas.toDataURL('image/jpeg'));
+            };
+            img.src = imageUrl;
+        });
     };
     
     const handleImageChange = (id: number, file: File) => {
         const allowedTypes = ['image/jpeg', 'image/png'];
         if (!allowedTypes.includes(file.type)) {
-            alert('Unsupported file type. Please upload a JPG or PNG image.');
+            setShowUnsupportedFileModal(true);
             return;
         }
 
         const reader = new FileReader();
         reader.onload = (e) => {
-            const result = e.target?.result as string;
-            
+            const dataUrl = e.target?.result as string;
             const img = new Image();
-            img.onload = () => {
-                const width = img.width;
-                const height = img.height;
-
-                // Vertical image: preserve aspect ratio, use original image
-                if (height > width) {
-                    setPhotos(prev => prev.map(p => p.id === id ? { ...p, imageUrl: result } : p));
-                    return;
-                }
-
-                // Horizontal or square image: auto-crop to 4:3
-                const targetAspect = 4 / 3;
-                let sourceWidth, sourceHeight, sx, sy;
-
-                const sourceAspect = width / height;
-
-                if (sourceAspect > targetAspect) { // Wider than target: crop sides
-                    sourceHeight = height;
-                    sourceWidth = height * targetAspect;
-                    sx = (width - sourceWidth) / 2;
-                    sy = 0;
-                } else { // Taller than target: crop top/bottom
-                    sourceWidth = width;
-                    sourceHeight = width / targetAspect;
-                    sx = 0;
-                    sy = (height - sourceHeight) / 2;
-                }
-
-                const canvas = document.createElement('canvas');
-                // Set a reasonable output resolution for quality
-                const outputWidth = 1200;
-                canvas.width = outputWidth;
-                canvas.height = outputWidth / targetAspect; // 900
-
-                const ctx = canvas.getContext('2d');
-                if (!ctx) return;
-
-                ctx.drawImage(img, sx, sy, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
-
-                const croppedImageUrl = canvas.toDataURL('image/jpeg');
-                setPhotos(prev => prev.map(p => p.id === id ? { ...p, imageUrl: croppedImageUrl } : p));
+            img.onload = async () => {
+                 const finalImageUrl = await autoCropImage(dataUrl);
+                 setPhotosData(prev => prev.map(photo => photo.id === id ? { ...photo, imageUrl: finalImageUrl } : photo));
             };
-            img.src = result;
+            img.src = dataUrl;
         };
         reader.readAsDataURL(file);
     };
 
     const addPhoto = () => {
-        const newId = Date.now();
-        const newPhotoNumber = String(photos.length + 1);
-        setPhotos(prev => [...prev, { id: newId, photoNumber: newPhotoNumber, date: '', location: '', description: '', imageUrl: null }]);
+        const newId = photosData.length > 0 ? Math.max(...photosData.map(p => p.id)) + 1 : 1;
+        setPhotosData(prev => [
+            ...prev,
+            {
+                id: newId,
+                photoNumber: String(prev.length + 1),
+                date: '',
+                location: '',
+                description: '',
+                imageUrl: null,
+            }
+        ]);
+    };
+
+    const renumberPhotos = (photos: PhotoData[]) => {
+        return photos.map((photo, index) => ({ ...photo, photoNumber: String(index + 1) }));
     };
 
     const removePhoto = (id: number) => {
-        const newPhotos = photos.filter(p => p.id !== id).map((photo, index) => ({
-            ...photo,
-            photoNumber: String(index + 1),
-        }));
-        setPhotos(newPhotos);
+        setPhotosData(prev => renumberPhotos(prev.filter(photo => photo.id !== id)));
     };
-    
+
     const movePhoto = (id: number, direction: 'up' | 'down') => {
-        const index = photos.findIndex(p => p.id === id);
-        if ((direction === 'up' && index === 0) || (direction === 'down' && index === photos.length - 1)) {
-            return;
-        }
+        const index = photosData.findIndex(p => p.id === id);
+        if (index === -1) return;
+
         const newIndex = direction === 'up' ? index - 1 : index + 1;
-        const newPhotos = [...photos];
+        if (newIndex < 0 || newIndex >= photosData.length) return;
+
+        const newPhotos = [...photosData];
         [newPhotos[index], newPhotos[newIndex]] = [newPhotos[newIndex], newPhotos[index]];
         
-        const renumberedPhotos = newPhotos.map((photo, idx) => ({
-            ...photo,
-            photoNumber: String(idx + 1)
-        }));
-
-        setPhotos(renumberedPhotos);
+        setPhotosData(renumberPhotos(newPhotos));
     };
 
     const validateForm = (): boolean => {
-        const newErrors = { header: new Set<keyof HeaderData>(), photos: new Map<number, Set<keyof PhotoData>>() };
-        let isValid = true;
-
-        Object.keys(headerData).forEach(key => {
-            if (!headerData[key as keyof HeaderData]) {
-                newErrors.header.add(key as keyof HeaderData);
-                isValid = false;
+        const newErrors = new Set<string>();
+        (Object.keys(headerData) as Array<keyof HeaderData>).forEach(key => {
+            if (!headerData[key]) {
+                newErrors.add(key);
             }
         });
-
-        photos.forEach(photo => {
-            const photoErrors = new Set<keyof PhotoData>();
-            if (!photo.date) photoErrors.add('date');
-            if (!photo.location) photoErrors.add('location');
-            if (!photo.description) photoErrors.add('description');
-            if (!photo.imageUrl) photoErrors.add('imageUrl');
-
-            if (photoErrors.size > 0) {
-                newErrors.photos.set(photo.id, photoErrors);
-                isValid = false;
-            }
+        photosData.forEach(photo => {
+            const prefix = `photo-${photo.id}-`;
+            if (!photo.date) newErrors.add(`${prefix}date`);
+            if (!photo.location) newErrors.add(`${prefix}location`);
+            if (!photo.description) newErrors.add(`${prefix}description`);
+            if (!photo.imageUrl) newErrors.add(`${prefix}imageUrl`);
         });
-        
+
         setErrors(newErrors);
-        return isValid;
+        if (newErrors.size > 0) {
+            setShowValidationErrorModal(true);
+            return false;
+        }
+        return true;
     };
 
-    const generatePdfPreview = async () => {
-        if (!validateForm()) {
-            alert("Please fill in all required fields before saving.");
+    const handleSavePdf = async () => {
+        if (!validateForm()) return;
+    
+        try {
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'letter' });
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 10;
+            const contentWidth = pageWidth - margin * 2;
+    
+            const getMaxWidth = (docInstance: any, text: string) => {
+                const lines = text.split('\n');
+                return Math.max(...lines.map(line => docInstance.getTextWidth(line)));
+            };
+    
+            const drawHeader = (docInstance: any) => {
+                let yPos = margin;
+                const logoUrl = "https://ik.imagekit.io/fzpijprte/XTerraLogo2019_Horizontal.jpg?updatedAt=1758827714962";
+                docInstance.addImage(logoUrl, 'JPEG', margin, yPos, 40, 10);
+                
+                docInstance.setFontSize(18);
+                docInstance.setFont('times', 'bold');
+                docInstance.setTextColor(0, 125, 140);
+                docInstance.text('PHOTOGRAPHIC LOG', pageWidth / 2, yPos + 7, { align: 'center' });
+                
+                docInstance.setTextColor(0, 0, 0);
+
+                const lloydminsterLines = '6208 48th Street\nLloydminster, AB\nT9V 2G1\nTEL (780) 875-1442\nFAX (780) 871-0925';
+                const saskatoonLines = '100-303 Wheeler Pl.\nSaskatoon, SK\nS7P 0A4\nTEL (306) 373-1110\nFAX (306) 373-2444';
+
+                docInstance.setFontSize(7);
+                docInstance.setFont('times', 'normal');
+                
+                const lloydminsterWidth = getMaxWidth(docInstance, lloydminsterLines);
+                const saskatoonWidth = getMaxWidth(docInstance, saskatoonLines);
+                
+                const lloydminsterX = pageWidth - margin;
+                docInstance.text(lloydminsterLines, lloydminsterX, yPos, { align: 'right' });
+
+                const saskatoonX = lloydminsterX - lloydminsterWidth - 3;
+                docInstance.text(saskatoonLines, saskatoonX, yPos, { align: 'right' });
+                
+                yPos += 18;
+                docInstance.setLineWidth(0.5);
+                docInstance.setDrawColor(0, 125, 140);
+                docInstance.line(margin, yPos, pageWidth - margin, yPos);
+                yPos += 5;
+    
+                docInstance.setFontSize(12);
+                const textY = yPos;
+                const col1X = margin;
+                const col2X = pageWidth * 0.6;
+                const col1MaxWidth = col2X - col1X - 5;
+                const col2MaxWidth = pageWidth - margin - col2X;
+                
+                const drawField = (label: string, value: string, x: number, y: number, maxWidth: number): number => {
+                    const valueOrDefault = value || ' '; // Ensure value is not empty for measurements
+                    docInstance.setFont('times', 'bold');
+                    const labelText = `${label}:`;
+                    const labelWidth = docInstance.getTextWidth(labelText);
+                    
+                    docInstance.setFont('times', 'normal');
+                    const valueX = x + labelWidth; // Position immediately after label
+                    const valueMaxWidth = maxWidth - labelWidth;
+
+                    // Prepend space to the value itself for consistent spacing
+                    const valueLines = docInstance.splitTextToSize(` ${valueOrDefault}`, valueMaxWidth);
+                    const textBlockHeight = docInstance.getTextDimensions(valueLines).h;
+                    
+                    docInstance.setFont('times', 'bold');
+                    docInstance.text(labelText, x, y);
+                    
+                    docInstance.setFont('times', 'normal');
+                    docInstance.text(valueLines, valueX, y);
+
+                    // Return the Y position for the start of the NEXT element
+                    return y + textBlockHeight;
+                };
+
+                let col1Y = textY;
+                let col2Y = textY;
+                const fieldGap = 2; // 2mm gap between fields
+
+                col1Y = drawField('Proponent', headerData.proponent, col1X, col1Y, col1MaxWidth) + fieldGap;
+                col1Y = drawField('Project Name', headerData.projectName, col1X, col1Y, col1MaxWidth) + fieldGap;
+                col1Y = drawField('Location', headerData.location, col1X, col1Y, col1MaxWidth);
+
+                col2Y = drawField('Date', headerData.date, col2X, col2Y, col2MaxWidth) + fieldGap;
+                col2Y = drawField('Project', headerData.projectNumber, col2X, col2Y, col2MaxWidth);
+
+                yPos = Math.max(col1Y, col2Y) + 3;
+                
+                docInstance.setLineWidth(0.5);
+                docInstance.line(margin, yPos, pageWidth - margin, yPos);
+                return yPos + 8; 
+            };
+    
+            const footerHeight = 15;
+            const maxYPos = pageHeight - footerHeight;
+
+            const drawFooter = (docInstance: any, pageNum: number) => {
+                docInstance.setFontSize(10);
+                docInstance.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 7, { align: 'right' });
+            };
+
+            const calculateEntryHeight = async (docInstance: any, photo: PhotoData) => {
+                const tempDoc = new jsPDF({ format: 'letter', unit: 'mm' });
+                const gap = 5;
+                const availableWidth = contentWidth - gap;
+                const textBlockWidth = availableWidth * 0.40;
+                const imageBlockWidth = availableWidth * 0.60;
+                tempDoc.setFontSize(14);
+
+                let textHeight = 0;
+                
+                const measureField = (label, value, isDesc = false) => {
+                    if (isDesc) {
+                         textHeight += tempDoc.getTextDimensions(label, { maxWidth: textBlockWidth }).h + 2; // Label
+                         return tempDoc.getTextDimensions(value, { maxWidth: textBlockWidth }).h; // Value
+                    }
+                    const combined = `${label}: ${value}`;
+                    return tempDoc.getTextDimensions(combined, { maxWidth: textBlockWidth }).h + 4;
+                };
+
+                textHeight += measureField('Photo', photo.photoNumber);
+                textHeight += measureField('Date', photo.date);
+                textHeight += measureField('Location', photo.location);
+                textHeight += measureField('Description', photo.description, true);
+
+                let scaledHeight = 0;
+                if (photo.imageUrl) {
+                    const { width, height } = await getImageDimensions(photo.imageUrl);
+                    scaledHeight = height * (imageBlockWidth / width);
+                }
+                return Math.max(textHeight, scaledHeight);
+            };
+
+            const drawPhotoEntry = async (docInstance: any, photo: PhotoData, yStart: number) => {
+                const gap = 5;
+                const availableWidth = contentWidth - gap;
+                const textBlockWidth = availableWidth * 0.40;
+                const imageBlockWidth = availableWidth * 0.60;
+                const imageX = margin + textBlockWidth + gap;
+                docInstance.setFontSize(14);
+                
+                let textY = yStart;
+
+                const drawTextField = (label: string, value: string, isDesc = false) => {
+                    if (isDesc) {
+                        docInstance.setFont('times', 'bold');
+                        docInstance.text(label, margin, textY);
+                        textY += docInstance.getTextDimensions(label, { maxWidth: textBlockWidth }).h + 2;
+                        
+                        docInstance.setFont('times', 'normal');
+                        const dims = docInstance.getTextDimensions(value, { maxWidth: textBlockWidth });
+                        docInstance.text(value, margin, textY, { maxWidth: textBlockWidth });
+                        textY += dims.h;
+                        return;
+                    }
+
+                    docInstance.setFont('times', 'bold');
+                    const labelText = `${label}:`;
+                    docInstance.text(labelText, margin, textY);
+                    
+                    docInstance.setFont('times', 'normal');
+                    const labelWidth = docInstance.getTextWidth(labelText);
+                    const valueX = margin + labelWidth;
+                    const valueMaxWidth = textBlockWidth - labelWidth;
+                    const dims = docInstance.getTextDimensions(` ${value}`, { maxWidth: valueMaxWidth });
+                    docInstance.text(` ${value}`, valueX, textY, { maxWidth: valueMaxWidth });
+                    textY += dims.h + 4;
+                };
+
+                drawTextField('Photo', photo.photoNumber);
+                drawTextField('Date', photo.date);
+                drawTextField('Location', photo.location);
+                drawTextField('Description:', photo.description, true);
+
+                const textBlockHeight = textY - yStart;
+
+                let scaledHeight = 0;
+                if (photo.imageUrl) {
+                    const { width, height } = await getImageDimensions(photo.imageUrl);
+                    scaledHeight = height * (imageBlockWidth / width);
+                    docInstance.addImage(photo.imageUrl, 'JPEG', imageX, yStart, imageBlockWidth, scaledHeight);
+                }
+
+                return yStart + Math.max(textBlockHeight, scaledHeight);
+            };
+            
+            let currentPage = 1;
+            let yPos = drawHeader(doc);
+            const separatorHeight = 15;
+
+            for (const [index, photo] of photosData.entries()) {
+                const entryHeight = await calculateEntryHeight(doc, photo);
+                const spaceNeeded = entryHeight + separatorHeight;
+                
+                if (yPos + spaceNeeded > maxYPos) {
+                    drawFooter(doc, currentPage);
+                    doc.addPage();
+                    currentPage++;
+                    yPos = drawHeader(doc);
+                }
+
+                yPos = await drawPhotoEntry(doc, photo, yPos);
+                
+                yPos += separatorHeight / 2;
+                doc.setLineWidth(0.5);
+                doc.setDrawColor(0, 125, 140);
+                doc.line(margin, yPos, pageWidth - margin, yPos);
+                yPos += separatorHeight / 2;
+            }
+
+            drawFooter(doc, currentPage);
+            
+            const sanitize = (name: string) => name.replace(/[^a-z0-9_]/gi, '-').toLowerCase();
+            const filename = `${sanitize(headerData.projectNumber) || 'project'}_${sanitize(headerData.projectName) || 'photolog'}_Photolog.pdf`;
+            
+            if (window.electronAPI) {
+                const pdfData = doc.output('arraybuffer');
+                await window.electronAPI.savePdf(pdfData, filename);
+            } else {
+                alert("This feature requires the desktop application environment.");
+            }
+        } catch (error) {
+            console.error("Failed to generate PDF:", error);
+            alert("An unexpected error occurred while generating the PDF. Please check the console for details.");
+        }
+    };
+
+    const handleSaveProject = async () => {
+        const state = { headerData, photosData };
+        const sanitize = (name: string) => name.replace(/[^a-z0-9_]/gi, '-').toLowerCase();
+        const filename = `${sanitize(headerData.projectNumber) || 'project'}_${sanitize(headerData.projectName) || 'photolog'}_Photolog.json`;
+        const jsonString = JSON.stringify(state, null, 2);
+
+        if (window.electronAPI) {
+            await window.electronAPI.saveProject(jsonString, filename);
+        } else {
+            alert("This feature requires the desktop application environment.");
+        }
+    };
+
+    const handleLoadProject = async () => {
+        if (!window.electronAPI) {
+            alert("This feature requires the desktop application environment.");
             return;
         }
 
-        setIsSaving(true);
-        const printableContent = document.getElementById('printable-content');
-        if (!printableContent) {
-            setIsSaving(false);
-            return;
-        }
+        const fileContent = await window.electronAPI.loadProject();
+        if (!fileContent) return; // User cancelled dialog or error occurred
 
-        printableContent.style.display = 'block';
-
-        const pages = printableContent.getElementsByClassName('printable-page');
-        const generatedImages: string[] = [];
-
-        for (let i = 0; i < pages.length; i++) {
-            const page = pages[i] as HTMLElement;
-            const canvas = await html2canvas(page, { scale: 2, useCORS: true });
-            generatedImages.push(canvas.toDataURL('image/png', 1.0));
-        }
-
-        printableContent.style.display = 'none';
-        setPreviewContent(generatedImages);
-        setShowPreview(true);
-        setIsSaving(false);
-    };
-
-    const savePdf = () => {
-        const pdf = new jspdf.jsPDF({
-            orientation: 'p',
-            unit: 'mm',
-            format: 'a4',
-        });
-
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-
-        previewContent.forEach((imgData, index) => {
-            if (index > 0) {
-                pdf.addPage();
+        try {
+            const { headerData: loadedHeader, photosData: loadedPhotos } = JSON.parse(fileContent);
+            if (loadedHeader && loadedPhotos && Array.isArray(loadedPhotos)) {
+                setHeaderData(loadedHeader);
+                setPhotosData(loadedPhotos);
+            } else {
+                alert('Invalid project file format.');
             }
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        });
-
-        const safeProjectNumber = headerData.projectNumber.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'project_number';
-        const safeProjectName = headerData.projectName.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'project_name';
-        const filename = `${safeProjectNumber}_${safeProjectName}_Photolog.pdf`;
-
-        pdf.save(filename);
-        setShowPreview(false);
-    };
-
-    const handleSaveProject = () => {
-        const projectData = {
-            headerData,
-            photos,
-        };
-        const jsonString = JSON.stringify(projectData, null, 2);
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const safeProjectNumber = headerData.projectNumber.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'project_number';
-        const safeProjectName = headerData.projectName.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'project_name';
-        a.href = url;
-        a.download = `${safeProjectNumber}_${safeProjectName}_Photolog.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    };
-
-    const handleOpenProject = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const text = e.target?.result as string;
-                const data = JSON.parse(text);
-
-                if (data && isHeaderData(data.headerData) && Array.isArray(data.photos) && data.photos.every(isPhotoData)) {
-                    setHeaderData(data.headerData);
-                    setPhotos(data.photos);
-                } else {
-                    throw new Error("Invalid project file format.");
-                }
-            } catch (error) {
-                console.error("Failed to parse project file:", error);
-                alert("Could not open project. Please select a valid project file created by this application.");
-            } finally {
-                // Reset the file input so the same file can be opened again
-                if (projectUploadRef.current) {
-                    projectUploadRef.current.value = '';
-                }
-            }
-        };
-        reader.readAsText(file);
-    };
-
-
-    const chunkPhotos = (photos: PhotoData[], chunkSize: number): PhotoData[][] => {
-        const chunks: PhotoData[][] = [];
-        for (let i = 0; i < photos.length; i += chunkSize) {
-            chunks.push(photos.slice(i, i + chunkSize));
+        } catch (err) {
+            alert('Error parsing project file. Ensure it is a valid JSON file.');
+            console.error(err);
         }
-        return chunks;
+    };
+
+    const getPhotoErrors = (id: number): Set<keyof PhotoData> => {
+        const photoErrors = new Set<keyof PhotoData>();
+        errors.forEach(errorKey => {
+            const prefix = `photo-${id}-`;
+            if (errorKey.startsWith(prefix)) {
+                photoErrors.add(errorKey.substring(prefix.length) as keyof PhotoData);
+            }
+        });
+        return photoErrors;
     };
     
-    const photoPages = chunkPhotos(photos, 2);
+    const getHeaderErrors = (): Set<keyof HeaderData> => {
+        const headerErrors = new Set<keyof HeaderData>();
+        errors.forEach(errorKey => {
+            if (!errorKey.startsWith('photo-')) {
+                headerErrors.add(errorKey as keyof HeaderData);
+            }
+        });
+        return headerErrors;
+    };
 
     return (
-        <div className="max-w-7xl mx-auto p-4 md:p-8">
-            {isSaving && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white p-6 rounded-lg shadow-xl text-center">
-                        <div className="text-xl font-bold">Generating Preview...</div>
-                        <div className="mt-2 text-gray-600">Please wait, this may take a moment.</div>
-                    </div>
+        <div className="bg-gray-100 min-h-screen">
+            <div className="max-w-7xl mx-auto p-4 md:p-8">
+                <div className="flex flex-wrap justify-end gap-2 mb-4">
+                    <button onClick={handleLoadProject} className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200">
+                        <FolderOpenIcon /> <span>Open Project</span>
+                    </button>
+                    <button onClick={handleSaveProject} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200">
+                        <SaveIcon /> <span>Save Project</span>
+                    </button>
+                    <button onClick={handleSavePdf} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200">
+                        <DownloadIcon /> <span>Save to PDF</span>
+                    </button>
                 </div>
-            )}
-            {showPreview && (
-                <div className="fixed inset-0 bg-black bg-opacity-75 flex flex-col items-center justify-center z-40 p-4">
-                    <div className="w-full max-w-4xl flex justify-between items-center mb-4">
-                        <h2 className="text-2xl font-bold text-white">PDF Preview</h2>
-                        <div>
-                             <button onClick={() => setShowPreview(false)} className="bg-gray-600 text-white font-bold py-2 px-4 rounded-md hover:bg-gray-700 transition duration-300 mr-2">
-                                Cancel
-                            </button>
-                            <button onClick={savePdf} className="bg-cyan-600 text-white font-bold py-2 px-4 rounded-md hover:bg-cyan-700 transition duration-300">
-                                Confirm & Save
-                            </button>
-                        </div>
-                    </div>
-                    <div className="w-full max-w-4xl bg-white overflow-y-auto" style={{ height: '80vh' }}>
-                        {previewContent.map((img, index) => (
-                            <img key={index} src={img} alt={`Preview Page ${index + 1}`} className="w-full h-auto block" />
+                <div className="main-content">
+                    <Header data={headerData} onDataChange={handleHeaderChange} errors={getHeaderErrors()} />
+                    <div className="space-y-8">
+                        {photosData.map((photo, index) => (
+                           <React.Fragment key={photo.id}>
+                                {index > 0 && <div className="border-t-4 border-[#007D8C] my-8" />}
+                                <PhotoEntry
+                                    data={photo}
+                                    onDataChange={(field, value) => handlePhotoDataChange(photo.id, field, value)}
+                                    onImageChange={(file) => handleImageChange(photo.id, file)}
+                                    onRemove={() => removePhoto(photo.id)}
+                                    onMoveUp={() => movePhoto(photo.id, 'up')}
+                                    onMoveDown={() => movePhoto(photo.id, 'down')}
+                                    isFirst={index === 0}
+                                    isLast={index === photosData.length - 1}
+                                    errors={getPhotoErrors(photo.id)}
+                                />
+                            </React.Fragment>
                         ))}
                     </div>
                 </div>
-            )}
-
-            <Header data={headerData} onDataChange={handleHeaderChange} errors={errors.header}/>
-
-            <div className="space-y-6">
-                {photos.map((photo, index) => (
-                    <React.Fragment key={photo.id}>
-                        <PhotoEntry
-                            data={photo}
-                            onDataChange={(field, value) => handlePhotoDataChange(photo.id, field, value)}
-                            onImageChange={(file) => handleImageChange(photo.id, file)}
-                            onRemove={() => removePhoto(photo.id)}
-                            onMoveUp={() => movePhoto(photo.id, 'up')}
-                            onMoveDown={() => movePhoto(photo.id, 'down')}
-                            isFirst={index === 0}
-                            isLast={index === photos.length - 1}
-                            errors={errors.photos.get(photo.id)}
-                        />
-                         {index < photos.length - 1 && <hr className="border-t-4 border-cyan-600" />}
-                    </React.Fragment>
-                ))}
+                <div className="mt-8 flex justify-center">
+                    <button
+                        onClick={addPhoto}
+                        className="bg-[#007D8C] hover:bg-[#006b7a] text-white font-bold py-3 px-6 rounded-lg shadow-md inline-flex items-center gap-2 transition duration-200 text-lg"
+                    >
+                        <PlusIcon />
+                        <span>Add Photo</span>
+                    </button>
+                </div>
+                {photosData.length > 0 && <div className="border-t-4 border-[#007D8C] my-8" />}
             </div>
-
-            {photos.length === 0 && (
-                <div className="text-center py-12 px-6 bg-white rounded-lg shadow-md">
-                    <h2 className="text-xl font-bold text-gray-700">Your Photographic Log is Empty</h2>
-                    <p className="text-gray-500 mt-2">Click "Add Photo" to start building your log.</p>
+             {showUnsupportedFileModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 transition-opacity duration-300">
+                    <div className="bg-white p-8 rounded-lg shadow-2xl text-center relative max-w-md transform scale-95 hover:scale-100 transition-transform duration-300">
+                        <button
+                            onClick={() => setShowUnsupportedFileModal(false)}
+                            className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-700 transition-colors"
+                            aria-label="Close"
+                        >
+                            <CloseIcon className="h-6 w-6" />
+                        </button>
+                        <img
+                            src="https://ik.imagekit.io/fzpijprte/200.gif?updatedAt=1758919911063"
+                            alt="Unsupported file type animation"
+                            className="mx-auto mb-4 w-40 h-40"
+                        />
+                        <h3 className="text-2xl font-bold mb-2 text-gray-800">Unsupported File Type</h3>
+                        <p className="text-gray-600">
+                            Please upload a supported image file.
+                        </p>
+                        <p className="text-sm text-gray-500 mt-3">
+                            Supported formats: <strong>JPG, PNG</strong>
+                        </p>
+                    </div>
                 </div>
             )}
-
-            <div className="mt-8 flex justify-end items-center flex-wrap gap-4">
-                <input type="file" accept=".json" ref={projectUploadRef} onChange={handleOpenProject} className="hidden" />
-                 <button onClick={() => projectUploadRef.current?.click()} disabled={isSaving} className="flex items-center space-x-2 bg-gray-600 text-white font-bold py-2 px-4 rounded-md hover:bg-gray-700 transition duration-300 disabled:opacity-50">
-                    <FolderOpenIcon />
-                    <span>Open Project</span>
-                </button>
-                <button onClick={handleSaveProject} disabled={isSaving} className="flex items-center space-x-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition duration-300 disabled:opacity-50">
-                    <SaveIcon />
-                    <span>Save Project</span>
-                </button>
-                <button onClick={addPhoto} disabled={isSaving} className="flex items-center space-x-2 bg-cyan-600 text-white font-bold py-2 px-4 rounded-md hover:bg-cyan-700 transition duration-300 disabled:opacity-50">
-                    <PlusIcon />
-                    <span>Add Photo</span>
-                </button>
-                <button onClick={generatePdfPreview} disabled={isSaving || photos.length === 0} className="flex items-center space-x-2 bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700 transition duration-300 disabled:opacity-50">
-                    <DownloadIcon />
-                    <span>Save to PDF</span>
-                </button>
-            </div>
-            
-            <div id="printable-content" className="hidden">
-                {photoPages.map((pagePhotos, pageIndex) => (
-                    <div key={pageIndex} className="printable-page bg-white w-[210mm] h-[297mm] p-[10mm] flex flex-col">
-                        <Header data={headerData} onDataChange={() => {}} isPrintable={true} />
-                        <div className="flex-grow flex flex-col justify-around">
-                            {pagePhotos.map((photo, photoIndex) => (
-                                <React.Fragment key={photo.id}>
-                                    <PhotoEntry data={photo} onDataChange={() => {}} onImageChange={() => {}} onRemove={() => {}} onMoveUp={() => {}} onMoveDown={() => {}} isFirst={false} isLast={false} printable={true} />
-                                    {photoIndex < pagePhotos.length - 1 && <hr className="border-t-2 border-cyan-600 my-2" />}
-                                </React.Fragment>
-                            ))}
-                        </div>
-                        <div className="text-right text-sm text-gray-500 mt-auto pt-2">
-                           Page {pageIndex + 1}
-                        </div>
+            {showValidationErrorModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 transition-opacity duration-300">
+                    <div className="bg-white p-8 rounded-lg shadow-2xl text-center relative max-w-md transform scale-95 hover:scale-100 transition-transform duration-300">
+                        <button
+                            onClick={() => setShowValidationErrorModal(false)}
+                            className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-700 transition-colors"
+                            aria-label="Close"
+                        >
+                            <CloseIcon className="h-6 w-6" />
+                        </button>
+                        <img
+                            src="https://ik.imagekit.io/fzpijprte/200.gif?updatedAt=1758919911063"
+                            alt="Missing information animation"
+                            className="mx-auto mb-4 w-40 h-40"
+                        />
+                        <h3 className="text-2xl font-bold mb-2 text-gray-800">Missing Information</h3>
+                        <p className="text-gray-600">
+                            Please fill in all required fields.
+                        </p>
+                        <p className="text-sm text-gray-500 mt-3">
+                            Missing fields are highlighted in red.
+                        </p>
                     </div>
-                ))}
-            </div>
+                </div>
+            )}
         </div>
     );
 };
