@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X-TES Digital Reporting - Help</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: Calibri, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            scroll-behavior: smooth;
+        }
+        h1, h2, h3 {
+            color: #1f2937; /* gray-800 */
+        }
+        h2 {
+            border-bottom: 2px solid #007D8C;
+            padding-bottom: 0.5rem;
+            margin-top: 2rem;
+        }
+        li {
+            margin-bottom: 0.5rem;
+        }
+        strong {
+            color: #007D8C;
+        }
+        code {
+            background-color: #f3f4f6; /* gray-100 */
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+        }
+        .note {
+            background-color: #eef2ff; /* indigo-50 */
+            border-left: 4px solid #4f46e5; /* indigo-600 */
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 0.25rem;
+        }
+        .toc a {
+            color: #007D8C;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-700 leading-relaxed">
+    <div class="max-w-4xl mx-auto p-8">
+        <h1 class="text-4xl font-extrabold text-center mb-8">X-TES Digital Reporting Help Guide</h1>
+
+        <nav class="bg-white p-6 rounded-lg shadow-md mb-10 toc">
+            <h2 class="text-2xl font-bold mb-4 mt-0 border-b-2 border-gray-200">Table of Contents</h2>
+            <ol class="list-decimal list-inside space-y-2">
+                <li><a href="#pre-steps">Pre-Steps: Preparing Your Photos</a></li>
+                <li><a href="#getting-started">Getting Started with the Application</a></li>
+                <li><a href="#dfr-standard">Creating a Daily Field Report</a></li>
+                <li><a href="#photolog">The Photographic Log</a></li>
+                <li><a href="#saving">Saving and Exporting</a></li>
+                <li><a href="#data-management">Managing Your Data</a></li>
+            </ol>
+        </nav>
+
+        <section id="pre-steps">
+            <h2 class="text-3xl font-bold mb-4">1. Pre-Steps: Preparing Your Photos (IMPORTANT)</h2>
+            <p>Before creating a report, it is critical to prepare your site photos. Following these steps ensures report consistency, manageable PDF file sizes, and proper archiving on the company server.</p>
+            
+            <h3 class="text-2xl font-semibold mt-6 mb-3">Step 1: Crop Photos to a 4:3 Aspect Ratio</h3>
+            <p>All photos in the final PDF report are formatted to a <strong>4:3 aspect ratio</strong> (a standard landscape format). While the application will automatically crop your images to fit, doing this manually beforehand gives you full control over the final composition.</p>
+            <ul class="list-disc list-inside mt-2">
+                <li>Use any standard photo editor (like Windows Photos, macOS Preview, or a free online tool) to crop your images.</li>
+                <li>Set the aspect ratio to 4:3 and frame your subject as desired.</li>
+            </ul>
+
+            <h3 class="text-2xl font-semibold mt-6 mb-3">Step 2: Resize Photos to Reduce File Size</h3>
+            <p>High-resolution photos can create extremely large PDF files that are difficult to email and store. You must create resized versions of your photos for use in the reporting application.</p>
+             <ul class="list-disc list-inside mt-2">
+                <li>A good target size is a maximum width of <strong>1024 pixels</strong>. This provides excellent quality in the PDF without bloating the file size.</li>
+                <li>Use a photo editor's "Resize" or "Export" function to create these smaller copies. Be sure to save them as a separate set of files so you still have the full-size originals.</li>
+            </ul>
+
+            <h3 class="text-2xl font-semibold mt-6 mb-3">Step 3: Upload Photos to the X-Terra Server</h3>
+            <p>Proper file management is essential. After preparing your photos, you must upload <strong>both the full-size originals and the resized versions</strong> to the appropriate project folder on the X-Terra server. This ensures we have high-quality originals archived and that your resized photos are backed up.</p>
+        </section>
+
+        <section id="getting-started">
+            <h2 class="text-3xl font-bold mb-4">2. Getting Started with the Application</h2>
+            <p>Once your photos are prepared and uploaded, you can begin creating your report.</p>
+            <h3 class="text-2xl font-semibold mt-6 mb-3">Creating a New Report</h3>
+            <p>From the main landing page, you can start a new, blank report by clicking one of the three main options shown below.</p>
+            <img src="https://ik.imagekit.io/fzpijprte/help/landing_page_selection.png" alt="Screenshot of the main landing page showing the three report type selection cards." class="w-full rounded-lg shadow-md my-4">
+            <ul class="list-disc list-inside mt-2">
+                <li>Click <strong>Photographic Log</strong> for a standalone report containing only photos and descriptions.</li>
+                <li>Click <strong>Daily Field Report</strong> for a comprehensive report that includes detailed activity logs and an integrated photo log.</li>
+                <li>Click <strong>Sask Power Daily Field Report</strong> for the specialized DFR format required for SaskPower projects.</li>
+            </ul>
+
+            <h3 class="text-2xl font-semibold mt-6 mb-3">Opening an Existing Report</h3>
+            <p>You have two ways to open a project:</p>
+            <ul class="list-disc list-inside mt-2">
+                <li><strong>Recent Projects:</strong> The landing page lists your most recent work. Simply click on a project to open it. You can use the search bar to filter this list by project name or number.</li>
+                <li><strong>Open From File:</strong> In any report view, click the <strong>Open</strong> button to browse your computer for a project file (<code>.plog</code>, <code>.dfr</code>, or <code>.spdfr</code>). You can also open files by double-clicking them if the application was installed via the installer.</li>
+            </ul>
+        </section>
+
+        <section id="dfr-standard">
+            <h2 class="text-3xl font-bold mb-4">3. Creating a Daily Field Report</h2>
+            <p>The DFR includes all the features of a Photo Log, plus sections for detailed daily notes.</p>
+             <h3 class="text-2xl font-semibold mt-6 mb-3">A Note on the Text Editor</h3>
+             <p>The text fields for activities and observations use a special editor designed for clarity. You may notice a difference between how text looks in the app versus the final PDF.</p>
+             <img src="https://ik.imagekit.io/fzpijprte/help/dfr_editor_annotated.png" alt="Screenshot of the DFR text editor with annotations showing the indented view in the app vs the aligned view in the PDF." class="w-full rounded-lg shadow-md my-4">
+             <ul class="list-disc list-inside mt-2">
+                <li><strong>In the App:</strong> The text is formatted with a "hanging indent." This means the bullet point is slightly to the left of the text. This is intentional and helps make long lists of activities easier to read and edit on screen.</li>
+                <li><strong>In the PDF:</strong> For a professional and clean final document, the exported PDF aligns the bullet point and the text flush left. This is the standard formatting for formal reports.</li>
+            </ul>
+            <div class="note">
+                <p><strong>In summary:</strong> The indented view in the app is for your convenience while editing. The aligned view in the PDF is the correct, final format. What you see in the app is not a formatting error.</p>
+            </div>
+             <h3 class="text-2xl font-semibold mt-6 mb-3">Using the Bullet-Point Editor</h3>
+             <ul class="list-disc list-inside mt-2">
+                <li>The editor automatically starts with a bullet point (<code>-</code>). If you delete it, simply type a hyphen to begin a bulleted list.</li>
+                <li>Press <strong>Enter</strong> to create a new bullet point on the next line.</li>
+                <li>You can add detailed, multi-line descriptions for each activity.</li>
+            </ul>
+        </section>
+
+        <section id="photolog">
+            <h2 class="text-3xl font-bold mb-4">4. The Photographic Log</h2>
+            <p>Both the standalone Photo Log and the integrated DFR photo log function identically.</p>
+            <img src="https://ik.imagekit.io/fzpijprte/help/photo_entry_component.png" alt="Screenshot of a single photo entry, showing the data fields on the left and the image upload area on the right." class="w-full rounded-lg shadow-md my-4">
+            <ul class="list-disc list-inside mt-2">
+                <li><strong>Project Header:</strong> Fill in all the details at the top. This information will appear on every page of the final PDF.</li>
+                <li><strong>Adding Photos:</strong> Click the <strong>Add Photo</strong> (or <strong>Add Site Photo</strong>) button to add a new entry.</li>
+                <li><strong>Photo Details:</strong> For each entry, fill in the <strong>Date</strong>, <strong>Location</strong>, and <strong>Description</strong>. The Photo Number is automatically assigned and updated if you reorder photos.</li>
+                <li><strong>Uploading Images:</strong> Click the camera icon area to select one of your <strong>resized</strong> image files (JPG or PNG) from your computer.</li>
+                <li><strong>Managing Photos:</strong> Use the up/down arrows to reorder photos and the trash can icon to delete an entry.</li>
+            </ul>
+        </section>
+
+        <section id="saving">
+            <h2 class="text-3xl font-bold mb-4">5. Saving and Exporting</h2>
+            <p>The header contains the primary action buttons for managing your files.</p>
+            <img src="https://ik.imagekit.io/fzpijprte/help/save_buttons_header.png" alt="Screenshot of the header buttons: Open, Save, and Save PDF." class="w-full rounded-lg shadow-md my-4">
+            <h3 class="text-2xl font-semibold mt-6 mb-3">Save Project vs. Save to PDF: What's the Difference?</h3>
+            <p>This is the most important concept for managing your work.</p>
+            <ul class="list-disc list-inside mt-2">
+                <li><strong>Save Project:</strong> This saves your work-in-progress to a special <strong>editable source file</strong> (<code>.plog</code>, <code>.dfr</code>, <code>.spdfr</code>). This file contains all your data and can be re-opened in the app to continue editing. <strong>This is how you save your work for later.</strong></li>
+                <li><strong>Save to PDF:</strong> This creates a final, <strong>non-editable PDF document</strong>. This is for sharing, printing, or submitting your finished report. You cannot open a PDF to edit it in this application. Always save your project file before creating the PDF.</li>
+            </ul>
+        </section>
+
+        <section id="data-management">
+            <h2 class="text-3xl font-bold mb-4">6. Managing Your Data</h2>
+            <h3 class="text-2xl font-semibold mt-6 mb-3">How Data is Saved</h3>
+            <p>When you save a project, it is automatically added to your <strong>Recent Projects</strong> list. All project data, including images, is stored locally in the application's dedicated storage on your computer. It is not sent over the internet, ensuring your data remains private.</p>
+            
+            <h3 class="text-2xl font-semibold mt-6 mb-3">Recent Projects: Removing vs. Deleting</h3>
+            <p>In the <strong>Recent Projects</strong> list, you can click the vertical ellipsis (three dots) to manage an entry:</p>
+            <img src="https://ik.imagekit.io/fzpijprte/help/recent_projects_menu.png" alt="Screenshot of the recent projects list with the context menu open, showing 'Remove from recent' and 'Delete project permanently' options." class="w-full rounded-lg shadow-md my-4">
+            <ul class="list-disc list-inside mt-2">
+                <li><strong>Remove from recent:</strong> This only removes the project from the list on the landing page. The project data itself remains stored on your computer.</li>
+                <li><strong>Delete project permanently:</strong> This completely deletes the project and all its associated images from your computer's local storage. <strong>This action cannot be undone.</strong> Only use this if you are certain you no longer need the editable project file.</li>
+            </ul>
+        </section>
+        
+        <footer class="text-center text-gray-500 text-sm mt-12 py-4 border-t">
+            X-TES Digital Reporting v1.0.0
+        </footer>
+    </div>
+</body>
+</html>

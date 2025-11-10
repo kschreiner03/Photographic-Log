@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import type { PhotoData } from '../types';
-import { TrashIcon, CameraIcon, ArrowUpIcon, ArrowDownIcon } from './icons';
+import { TrashIcon, CameraIcon, ArrowUpIcon, ArrowDownIcon, ArrowsPointingOutIcon } from './icons';
 
 interface PhotoEntryProps {
   data: PhotoData;
-  onDataChange: (field: keyof Omit<PhotoData, 'id' | 'imageUrl'>, value: string) => void;
+  // FIX: Omit 'imageId' from the editable fields, as it is managed internally.
+  onDataChange: (field: keyof Omit<PhotoData, 'id' | 'imageUrl' | 'imageId'>, value: string) => void;
   onImageChange: (file: File) => void;
   onRemove: () => void;
   onMoveUp: () => void;
@@ -13,10 +14,14 @@ interface PhotoEntryProps {
   isLast: boolean;
   printable?: boolean;
   errors?: Set<keyof PhotoData>;
+  showDirectionField?: boolean;
+  isLocationLocked?: boolean;
+  onImageClick?: (imageUrl: string) => void;
 }
 
 const EditableField: React.FC<{ label: string; value: string; onChange: (value: string) => void; isTextArea?: boolean; type?: 'text' | 'date', printable?: boolean; isInvalid?: boolean; readOnly?: boolean }> = ({ label, value, onChange, isTextArea = false, type = 'text', printable = false, isInvalid = false, readOnly = false }) => {
     const commonClasses = "p-1 w-full bg-transparent focus:outline-none transition duration-200 text-base font-normal text-black min-w-0";
+    const elementRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
 
     if (printable) {
         if (isTextArea) {
@@ -39,58 +44,54 @@ const EditableField: React.FC<{ label: string; value: string; onChange: (value: 
         return (
             <div className="flex items-baseline gap-2">
                 <label className="block text-base font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</label>
-                <span className="p-1 w-full text-base font-normal text-black">{value}</span>
+                <span className="p-1 w-full text-base font-normal text-gray-500">{value}</span>
             </div>
         );
     }
 
     if (type === 'date') {
-        const [month, day, year] = React.useMemo(() => {
-            if (!value || typeof value !== 'string') return ['', '', ''];
-            const cleanedValue = value.replace(',', '');
-            const parts = cleanedValue.split(' ').filter(Boolean);
-            return [parts[0] || '', parts[1] || '', parts[2] || ''];
-        }, [value]);
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const dateValue = e.target.value;
+        if (dateValue) {
+            const dateObj = new Date(dateValue);
+            const formatted = dateObj.toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+            });
+            onChange(formatted);
+        } else {
+            onChange('');
+        }
+    };
 
-        const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        const days = Array.from({ length: 31 }, (_, i) => String(i + 1));
-        const years = Array.from({ length: 21 }, (_, i) => String(2020 + i));
+    const commonInputClasses = `p-1 w-full border-b-2 focus:outline-none focus:border-[#007D8C]
+        transition duration-200 bg-transparent text-base font-normal text-black min-w-0
+        ${isInvalid ? 'border-red-500' : 'border-gray-300'}`;
 
-        const handleDateChange = (part: 'month' | 'day' | 'year', newValue: string) => {
-            const newDate = { month, day, year };
-            if (part === 'month') newDate.month = newValue;
-            if (part === 'day') newDate.day = newValue;
-            if (part === 'year') newDate.year = newValue;
+    return (
+        <div className="flex items-baseline gap-2">
+            <label className="text-base font-bold text-black flex-shrink-0 whitespace-nowrap">
+                {label}:
+            </label>
+            <input
+                type="date"
+                value={
+                    value
+                        ? (() => {
+                              const parsed = new Date(value);
+                              if (isNaN(parsed.getTime())) return '';
+                              return parsed.toISOString().split('T')[0];
+                          })()
+                        : ''
+                }
+                onChange={handleDateChange}
+                className={commonInputClasses}
+            />
+        </div>
+    );
+}
 
-            if (newDate.month && newDate.day && newDate.year) {
-                onChange(`${newDate.month} ${newDate.day}, ${newDate.year}`);
-            } else {
-                onChange([newDate.month, newDate.day, newDate.year].filter(Boolean).join(' '));
-            }
-        };
-
-        const selectClasses = `${commonClasses} border-b-2 ${isInvalid ? 'border-red-500' : 'border-gray-300'} focus:border-[#007D8C]`;
-
-        return (
-            <div className="flex items-baseline gap-2">
-                <label className="block text-base font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</label>
-                <div className="flex gap-2 w-full">
-                    <select value={month} onChange={(e) => handleDateChange('month', e.target.value)} className={selectClasses}>
-                        <option value="" disabled>Month</option>
-                        {months.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                    <select value={day} onChange={(e) => handleDateChange('day', e.target.value)} className={selectClasses}>
-                        <option value="" disabled>Day</option>
-                        {days.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                    <select value={year} onChange={(e) => handleDateChange('year', e.target.value)} className={selectClasses}>
-                        <option value="" disabled>Year</option>
-                        {years.map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                </div>
-            </div>
-        );
-    }
 
     if (isTextArea) {
         // Description field (stacked layout)
@@ -98,6 +99,7 @@ const EditableField: React.FC<{ label: string; value: string; onChange: (value: 
             <div>
                 <label className="block text-base font-bold text-black">{label}:</label>
                 <textarea
+                    ref={elementRef}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
                     rows={4}
@@ -111,6 +113,7 @@ const EditableField: React.FC<{ label: string; value: string; onChange: (value: 
         <div className="flex items-baseline gap-2">
             <label className="block text-base font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</label>
             <input
+                ref={elementRef}
                 type="text"
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
@@ -121,7 +124,7 @@ const EditableField: React.FC<{ label: string; value: string; onChange: (value: 
 };
 
 
-const PhotoEntry: React.FC<PhotoEntryProps> = ({ data, onDataChange, onImageChange, onRemove, onMoveUp, onMoveDown, isFirst, isLast, printable = false, errors }) => {
+const PhotoEntry: React.FC<PhotoEntryProps> = ({ data, onDataChange, onImageChange, onRemove, onMoveUp, onMoveDown, isFirst, isLast, printable = false, errors, showDirectionField = false, isLocationLocked = false, onImageClick }) => {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             onImageChange(e.target.files[0]);
@@ -138,7 +141,7 @@ const PhotoEntry: React.FC<PhotoEntryProps> = ({ data, onDataChange, onImageChan
                 <div className="flex flex-col space-y-4 md:col-span-1 min-w-0">
                      <div className="flex justify-between items-center">
                         <div className="flex-grow min-w-0">
-                            <EditableField label="Photo" value={data.photoNumber} onChange={(v) => onDataChange('photoNumber', v)} printable={printable} isInvalid={errors?.has('photoNumber')} readOnly />
+                            <EditableField label={data.isMap ? "Map" : "Photo"} value={data.photoNumber} onChange={(v) => onDataChange('photoNumber', v)} printable={printable} isInvalid={errors?.has('photoNumber')} readOnly />
                         </div>
                         {showControls && (
                             <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
@@ -154,13 +157,16 @@ const PhotoEntry: React.FC<PhotoEntryProps> = ({ data, onDataChange, onImageChan
                             </div>
                         )}
                     </div>
+                    {showDirectionField && (
+                         <EditableField label="Direction" value={data.direction || ''} onChange={(v) => onDataChange('direction', v)} printable={printable} isInvalid={errors?.has('direction')} />
+                    )}
                     <EditableField label="Date" value={data.date} onChange={(v) => onDataChange('date', v)} type="date" printable={printable} isInvalid={errors?.has('date')} />
-                    <EditableField label="Location" value={data.location} onChange={(v) => onDataChange('location', v)} printable={printable} isInvalid={errors?.has('location')} />
+                    <EditableField label="Location" value={data.location} onChange={(v) => onDataChange('location', v)} printable={printable} isInvalid={errors?.has('location')} readOnly={isLocationLocked} />
                     <EditableField label="Description" value={data.description} onChange={(v) => onDataChange('description', v)} isTextArea printable={printable} isInvalid={errors?.has('description')} />
                 </div>
                 {/* Right Column: Image */}
                 <div className="flex items-center justify-center md:col-span-2">
-                    <div className={`w-full rounded-lg flex items-center justify-center relative overflow-hidden transition-colors duration-300 ${isImageInvalid ? 'ring-2 ring-red-500 ring-inset' : ''}`}>
+                    <div className={`group w-full rounded-lg flex items-center justify-center relative overflow-hidden transition-colors duration-300 ${isImageInvalid ? 'ring-2 ring-red-500 ring-inset' : ''}`}>
                         <input
                             type="file"
                             accept="image/jpeg, image/png"
@@ -170,9 +176,21 @@ const PhotoEntry: React.FC<PhotoEntryProps> = ({ data, onDataChange, onImageChan
                             disabled={printable}
                         />
                         {data.imageUrl ? (
-                            <img src={data.imageUrl} alt="Uploaded" className="object-contain max-w-full max-h-[280px]" />
+                             <>
+                                <img src={data.imageUrl} alt="Uploaded" className="object-contain max-w-full max-h-[280px]" />
+                                {!printable && onImageClick && (
+                                    <button
+                                        type="button"
+                                        onClick={() => onImageClick(data.imageUrl!)}
+                                        className="absolute top-2 right-2 bg-black bg-opacity-50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
+                                        aria-label="Enlarge image"
+                                    >
+                                        <ArrowsPointingOutIcon className="h-5 w-5" />
+                                    </button>
+                                )}
+                            </>
                         ) : (
-                            <div className="text-center text-gray-500 p-4 h-[280px] w-full flex flex-col justify-center items-center">
+                            <div className="text-center text-gray-500 p-4 h-[280px] w-full flex flex-col justify-center items-center pointer-events-none">
                                 <CameraIcon className="mx-auto h-20 w-20 text-gray-400"/>
                                 <p className="mt-2 text-base font-bold">Click or drag to upload an image</p>
                             </div>

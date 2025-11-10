@@ -1,5 +1,5 @@
 {
-  "name": "Photographic Log Editor",
-  "description": "An interactive web application to create and edit photographic logs, allowing users to update project details, upload images, and edit photo descriptions, mirroring a professional document format.",
+  "name": "X-TES Digital Reporting",
+  "description": "A comprehensive web application for creating and managing Daily Field Reports and Photographic Logs for environmental projects.",
   "requestFramePermissions": []
 }

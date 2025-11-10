@@ -1,37 +1,37 @@
 {
-  "name": "Xtec-Photo-Log",
-  "productName": "Xtec Photo Log",
-  "version": "1.1.0",
-  "description": "An interactive desktop application to create and edit photographic logs, allowing users to update project details, upload images, and edit photo descriptions.",
+  "name": "x-tes-digital-reporting-web",
+  "productName": "X-TES Digital Reporting",
+  "version": "1.0.0",
+  "description": "A comprehensive web application for creating and managing Daily Field Reports and Photographic Logs for environmental projects.",
   "main": ".vite/build/main.js",
-  "homepage": "./",
   "scripts": {
+    "dev": "vite",
     "start": "electron-forge start",
-    "package": "electron-forge package",
+    "build": "tsc && vite build",
     "make": "electron-forge make"
   },
   "keywords": [],
-  "author": "Photo Log Editor Team",
+  "author": {
+    "name": "X-Terra Environmental Services Ltd"
+  },
   "license": "ISC",
   "dependencies": {
+    "electron-squirrel-startup": "^1.0.1",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "electron-squirrel-startup": "^1.0.1"
-
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7.8.3",
+    "@electron-forge/cli": "^7.4.0",
     "@electron-forge/maker-deb": "^7.4.0",
     "@electron-forge/maker-rpm": "^7.4.0",
-    "@electron-forge/maker-squirrel": "^7.9.0",
+    "@electron-forge/maker-squirrel": "^7.4.0",
     "@electron-forge/maker-zip": "^7.4.0",
     "@electron-forge/plugin-vite": "^7.4.0",
-    "@types/electron-squirrel-startup": "^1.0.2",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
-    "electron": "^38.2.0",
+    "electron": "^31.0.1",
     "typescript": "^5.2.2",
-    "vite": "^7.1.7"
+    "vite": "^5.3.1"
   }
 }

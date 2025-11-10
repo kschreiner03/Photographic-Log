@@ -1,25 +1,44 @@
 <!DOCTYPE html>
-<html lang="en" class="font-serif">
+<html lang="en">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Photographic Log Editor</title>
+    <title>X-TEC Digital Reporting</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/idb@8.0.0/build/umd.js"></script>
+<link rel="stylesheet" href="/index.css">
+<style>
+    body {
+        font-family: Calibri, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+    .bullet-editor {
+        padding: 0.5rem; /* Uniform padding for top, right, bottom */
+        padding-left: 2rem; /* Extra space on the left for the bullet */
+        text-indent: -1.5rem; /* Pulls the first line back, creating the indent */
+        white-space: pre-wrap;
+    }
+    .bullet-editor:empty::before {
+        content: attr(data-placeholder);
+        color: #9ca3af; /* gray-400 */
+        pointer-events: none;
+        white-space: pre-wrap;
+        text-indent: 0;
+    }
+</style>
 <script type="importmap">
 {
   "imports": {
-    "react": "https://aistudiocdn.com/react@^19.1.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "vite": "https://aistudiocdn.com/vite@^7.1.7",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "vite": "https://aistudiocdn.com/vite@^7.1.12",
     "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.4"
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
-<body class="font-serif">
+<body class="font-sans">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
 </body>

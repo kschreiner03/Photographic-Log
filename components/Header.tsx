@@ -1,4 +1,4 @@
-import React, { useRef, useLayoutEffect } from 'react';
+import React, { useRef, useLayoutEffect, useEffect } from 'react';
 import type { HeaderData } from '../types';
 
 interface HeaderProps {
@@ -24,14 +24,21 @@ const InfoBlock: React.FC<{ lines: string[]; isPrintable?: boolean }> = ({ lines
     </div>
 );
 
-const EditableField: React.FC<{ label: string; value: string; onChange: (value: string) => void; isPrintable?: boolean; type?: 'text' | 'date'; isInvalid?: boolean; isTextArea?: boolean; }> = ({ label, value, onChange, isPrintable = false, type = 'text', isInvalid = false, isTextArea = false }) => {
+const EditableField: React.FC<{ 
+    label: string; 
+    value: string; 
+    onChange: (value: string) => void; 
+    isPrintable?: boolean; 
+    type?: 'text' | 'date'; 
+    isInvalid?: boolean; 
+    isTextArea?: boolean; 
+}> = ({ label, value, onChange, isPrintable = false, type = 'text', isInvalid = false, isTextArea = false }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     useLayoutEffect(() => {
         if (textareaRef.current) {
-            // By setting the height to 'inherit', we ensure it shrinks when text is deleted.
             textareaRef.current.style.height = 'inherit';
-            // Then we set the height to the scroll height, which represents the full content height.
             textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
         }
     }, [value]);
@@ -44,58 +51,54 @@ const EditableField: React.FC<{ label: string; value: string; onChange: (value: 
             </div>
         );
     }
-    
-    if (type === 'date') {
-        const [month, day, year] = React.useMemo(() => {
-            if (!value || typeof value !== 'string') return ['', '', ''];
-            const cleanedValue = value.replace(',', '');
-            const parts = cleanedValue.split(' ').filter(Boolean);
-            return [parts[0] || '', parts[1] || '', parts[2] || ''];
-        }, [value]);
 
-        const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        const days = Array.from({ length: 31 }, (_, i) => String(i + 1));
-        const years = Array.from({ length: 21 }, (_, i) => String(2020 + i));
+    // --- FIXED INDEPENDENT DATE DROPDOWNS ---
+   if (type === 'date') {
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const dateValue = e.target.value;
+        if (dateValue) {
+            const dateObj = new Date(dateValue);
+            const formatted = dateObj.toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+            });
+            onChange(formatted);
+        } else {
+            onChange('');
+        }
+    };
 
-        const handleDateChange = (part: 'month' | 'day' | 'year', newValue: string) => {
-            const newDate = { month, day, year };
-            newDate[part] = newValue;
-            // Only update if all parts are selected
-            if (part === 'month') newDate.month = newValue;
-            if (part === 'day') newDate.day = newValue;
-            if (part === 'year') newDate.year = newValue;
+    const commonInputClasses = `p-1 w-full border-b-2 focus:outline-none focus:border-[#007D8C]
+        transition duration-200 bg-transparent text-base font-normal text-black min-w-0
+        ${isInvalid ? 'border-red-500' : 'border-gray-300'}`;
 
-            if (newDate.month && newDate.day && newDate.year) {
-                onChange(`${newDate.month} ${newDate.day}, ${newDate.year}`);
-            } else {
-                 onChange([newDate.month, newDate.day, newDate.year].filter(Boolean).join(' '));
-            }
-        };
-        
-        const selectClasses = `p-1 w-full border-b-2 focus:outline-none focus:border-[#007D8C] transition duration-200 bg-transparent text-base font-normal text-black ${isInvalid ? 'border-red-500' : 'border-gray-300'}`;
+    return (
+        <div className="flex items-baseline gap-2">
+            <label className="text-base font-bold text-black flex-shrink-0 whitespace-nowrap">
+                {label}:
+            </label>
+            <input
+                type="date"
+                value={
+                    value
+                        ? (() => {
+                              const parsed = new Date(value);
+                              if (isNaN(parsed.getTime())) return '';
+                              return parsed.toISOString().split('T')[0];
+                          })()
+                        : ''
+                }
+                onChange={handleDateChange}
+                className={commonInputClasses}
+            />
+        </div>
+    );
+}
 
-        return (
-            <div className="flex items-baseline gap-2">
-                <label className="text-base font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</label>
-                <div className="flex gap-2 w-full">
-                    <select value={month} onChange={(e) => handleDateChange('month', e.target.value)} className={selectClasses}>
-                        <option value="" disabled>Month</option>
-                        {months.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                    <select value={day} onChange={(e) => handleDateChange('day', e.target.value)} className={selectClasses}>
-                        <option value="" disabled>Day</option>
-                        {days.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                    <select value={year} onChange={(e) => handleDateChange('year', e.target.value)} className={selectClasses}>
-                        <option value="" disabled>Year</option>
-                        {years.map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                </div>
-            </div>
-        );
-    }
-
-    const commonInputClasses = `p-1 w-full border-b-2 focus:outline-none focus:border-[#007D8C] transition duration-200 bg-transparent text-base font-normal text-black min-w-0 ${isInvalid ? 'border-red-500' : 'border-gray-300'}`;
+    const commonInputClasses = `p-1 w-full border-b-2 focus:outline-none focus:border-[#007D8C]
+        transition duration-200 bg-transparent text-base font-normal text-black min-w-0
+        ${isInvalid ? 'border-red-500' : 'border-gray-300'}`;
     
     if (isTextArea) {
         return (
@@ -116,6 +119,7 @@ const EditableField: React.FC<{ label: string; value: string; onChange: (value: 
         <div className="flex items-baseline gap-2">
             <label className="text-base font-bold text-black flex-shrink-0 whitespace-nowrap">{label}:</label>
             <input 
+                ref={inputRef}
                 type="text" 
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
@@ -127,34 +131,38 @@ const EditableField: React.FC<{ label: string; value: string; onChange: (value: 
 
 const Header: React.FC<HeaderProps> = ({ data, onDataChange, isPrintable = false, errors }) => {
     return (
-        <div className={`bg-white ${isPrintable ? 'p-0 shadow-none mb-2' : 'p-6 shadow-md rounded-lg mb-8'}`}>
-            <div className={`grid grid-cols-1 md:grid-cols-[auto,1fr,auto] md:items-center pb-4 gap-4`}>
+        <div className={`bg-white ${isPrintable ? 'p-0 shadow-none mb-2' : 'p-6 shadow-md rounded-lg mb-4'}`}>
+            <div className={`grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] md:items-center pb-4 gap-4`}>
                 <div className="flex justify-center md:justify-start">
                     <XterraLogo isPrintable={isPrintable} />
                 </div>
                 <h1 className={`font-extrabold text-[#007D8C] tracking-wider text-center whitespace-nowrap ${isPrintable ? 'text-2xl' : 'text-4xl'}`}>
                     PHOTOGRAPHIC LOG
                 </h1>
-                <div className={`flex justify-center md:justify-end text-right ${isPrintable ? 'flex-nowrap gap-x-4' : 'flex-wrap gap-x-6 gap-y-2'}`}>
-                     <InfoBlock lines={["100-303 Wheeler Pl.", "Saskatoon, SK", "S7P 0A4", "TEL (306) 373-1110", "FAX (306) 373-2444"]} isPrintable={isPrintable} />
-                    <InfoBlock lines={["6208 48th Street", "Lloydminster, AB", "T9V 2G1", "TEL (780) 875-1442", "FAX (780) 871-0925"]} isPrintable={isPrintable} />
-                </div>
+                <div></div>
             </div>
             
-            <div className={`border-t-4 border-[#007D8C] ${isPrintable ? 'mb-2' : 'mb-4'}`}></div>
+            <div className={`border-t-4 border-[#007D8C]`}></div>
 
-            <div className={`max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 ${isPrintable ? 'gap-x-4 gap-y-1' : 'gap-x-8 gap-y-4'}`}>
-                <div className={`md:col-span-2 flex flex-col ${isPrintable ? 'gap-1' : 'gap-4'}`}>
-                    <EditableField label="Proponent" value={data.proponent} onChange={(value) => onDataChange('proponent', value)} isPrintable={isPrintable} isInvalid={errors?.has('proponent')}/>
-                    <EditableField label="Project Name" value={data.projectName} onChange={(value) => onDataChange('projectName', value)} isPrintable={isPrintable} isInvalid={errors?.has('projectName')} isTextArea/>
-                    <EditableField label="Location" value={data.location} onChange={(value) => onDataChange('location', value)} isPrintable={isPrintable} isInvalid={errors?.has('location')} isTextArea/>
+            <div className={`max-w-5xl mx-auto flex flex-col ${isPrintable ? 'gap-y-1 pt-3 pb-2' : 'gap-y-2 pt-3 pb-2'}`}>
+                <div className={`grid grid-cols-1 md:grid-cols-2 ${isPrintable ? 'gap-x-4 gap-y-1' : 'gap-x-8 gap-y-2'}`}>
+                    {/* Left column */}
+                    <div className={`flex flex-col ${isPrintable ? 'gap-1' : 'gap-2'}`}>
+                        <EditableField label="Proponent" value={data.proponent} onChange={(value) => onDataChange('proponent', value)} isPrintable={isPrintable} isInvalid={errors?.has('proponent')}/>
+                        <EditableField label="Location" value={data.location} onChange={(value) => onDataChange('location', value)} isPrintable={isPrintable} isInvalid={errors?.has('location')} isTextArea/>
+                    </div>
+                    {/* Right column */}
+                    <div className={`flex flex-col ${isPrintable ? 'gap-1' : 'gap-2'}`}>
+                        <EditableField label="Date" value={data.date} onChange={(value) => onDataChange('date', value)} isPrintable={isPrintable} type="date" isInvalid={errors?.has('date')}/>
+                        <EditableField label="Project" value={data.projectNumber} onChange={(value) => onDataChange('projectNumber', value)} isPrintable={isPrintable} isInvalid={errors?.has('projectNumber')}/>
+                    </div>
                 </div>
-                <div className={`flex flex-col ${isPrintable ? 'gap-1' : 'gap-4'}`}>
-                     <EditableField label="Date" value={data.date} onChange={(value) => onDataChange('date', value)} isPrintable={isPrintable} type="date" isInvalid={errors?.has('date')}/>
-                    <EditableField label="Project" value={data.projectNumber} onChange={(value) => onDataChange('projectNumber', value)} isPrintable={isPrintable} isInvalid={errors?.has('projectNumber')}/>
+                {/* Full-width project name field */}
+                <div className="flex flex-col">
+                    <EditableField label="Project Name" value={data.projectName} onChange={(value) => onDataChange('projectName', value)} isPrintable={isPrintable} isInvalid={errors?.has('projectName')} isTextArea/>
                 </div>
             </div>
-             <div className={`border-t-4 border-[#007D8C] ${isPrintable ? 'mt-2' : 'mt-4'}`}></div>
+             <div className={`border-t-4 border-[#007D8C]`}></div>
         </div>
     );
 };
