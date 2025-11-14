@@ -12,6 +12,11 @@ To ensure the application has the correct icon for the installer, desktop shortc
 2.  **File Name**: The icon file **must be named `icon.ico`**.
 3.  **Location**: Place the `icon.ico` file directly inside this `/assets` directory.
 4.  **How to Create**: If you only have a PNG or JPG version of your icon, you can easily convert it to the required `.ico` format using a free online converter tool. Search for "PNG to ICO converter". A good `.ico` file should include multiple sizes (like 256x256, 48x48, 32x32, and 16x16) for best results on Windows.
+5.  **File-Specific Icons**: The application also uses unique icons for its custom file types (`.plog`, `.dfr`, `.spdfr`, `.clog`). You must also provide the following files in this directory:
+    *   `PHOTOLOGICON.ico`
+    *   `XTERRAICON.ico`
+    *   `SASKPOWERICON.ico`
+    *   `COMBINEDLOGICON.ico`
 
 ### macOS (`.icns`)
 

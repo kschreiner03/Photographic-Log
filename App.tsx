@@ -1,12 +1,14 @@
 
+
 import React, { useState, useEffect } from 'react';
 import LandingPage, { RecentProject } from './components/LandingPage';
 import PhotoLog from './components/PhotoLog';
 import DfrStandard from './components/DfrStandard';
 import DfrSaskpower from './components/DfrSaskpower';
 import { retrieveProject } from './components/db';
+import CombinedLog from './components/CombinedLog';
 
-export type AppType = 'photoLog' | 'dfrSaskpower' | 'dfrStandard';
+export type AppType = 'photoLog' | 'dfrSaskpower' | 'dfrStandard' | 'combinedLog';
 
 const PlaceholderApp: React.FC<{ title: string, onBack: () => void }> = ({ title, onBack }) => (
     <div className="bg-gray-100 min-h-screen flex flex-col justify-center items-center p-4">
@@ -36,6 +38,7 @@ const App: React.FC = () => {
             if (ext === 'plog') type = 'photoLog';
             else if (ext === 'dfr') type = 'dfrStandard';
             else if (ext === 'spdfr') type = 'dfrSaskpower';
+            else if (ext === 'clog') type = 'combinedLog';
 
             if (type) {
                 setProjectToOpen(projectData);
@@ -76,7 +79,8 @@ const App: React.FC = () => {
             if (!projectData) {
                 throw new Error("Project data not found in the database.");
             }
-            setProjectToOpen(projectData);
+            // Pass the timestamp along with the project data so the component knows its own ID
+            setProjectToOpen({ ...projectData, timestamp: project.timestamp });
             setSelectedApp(project.type);
         } catch (e) {
             console.error("Failed to load project data:", e);
@@ -100,6 +104,8 @@ const App: React.FC = () => {
             return <DfrSaskpower onBack={handleBackToHome} initialData={projectToOpen} />;
         case 'dfrStandard':
             return <DfrStandard onBack={handleBackToHome} initialData={projectToOpen} />;
+        case 'combinedLog':
+            return <CombinedLog onBack={handleBackToHome} initialData={projectToOpen} />;
         default:
             return <LandingPage onSelectApp={handleSelectApp} onOpenProject={handleOpenProject} />;
     }

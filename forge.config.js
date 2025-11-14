@@ -18,6 +18,11 @@ module.exports = {
         ext: 'plog',
         name: 'X-TES Photo Log',
         icon: 'assets/PHOTOLOGICON.ico'
+      },
+      {
+        ext: 'clog',
+        name: 'X-TES Combined Log',
+        icon: 'assets/COMBINEDLOGICON.ico'
       }
     ]
   },

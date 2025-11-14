@@ -16,7 +16,7 @@ if (!gotTheLock) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
       const filePath = commandLine.find(arg =>
-        arg.endsWith('.dfr') || arg.endsWith('.spdfr') || arg.endsWith('.plog')
+        arg.endsWith('.dfr') || arg.endsWith('.spdfr') || arg.endsWith('.plog') || arg.endsWith('.clog')
       );
       if (filePath) {
         mainWindow.webContents.send('open-file-path', filePath);
@@ -183,7 +183,7 @@ function createWindow() {
 
   mainWindow.webContents.on('did-finish-load', () => {
     const filePath = process.argv.find(arg =>
-      arg.endsWith('.dfr') || arg.endsWith('.spdfr') || arg.endsWith('.plog')
+      arg.endsWith('.dfr') || arg.endsWith('.spdfr') || arg.endsWith('.plog') || arg.endsWith('.clog')
     );
     if (filePath) {
       mainWindow.webContents.send('open-file-path', filePath);
@@ -250,6 +250,7 @@ app.whenReady().then(() => {
     if (ext === '.spdfr') filters = [{ name: 'SaskPower DFR Project', extensions: ['spdfr'] }];
     else if (ext === '.dfr') filters = [{ name: 'X-TES DFR Project', extensions: ['dfr'] }];
     else if (ext === '.plog') filters = [{ name: 'X-TES Photo Log', extensions: ['plog'] }];
+    else if (ext === '.clog') filters = [{ name: 'X-TES Combined Log', extensions: ['clog'] }];
 
     const { filePath } = await dialog.showSaveDialog(window, {
       title: 'Save Project',
@@ -275,9 +276,9 @@ app.whenReady().then(() => {
 
     if (fileType === 'plog') filters.push({ name: 'Photo Log Files', extensions: ['plog'] });
     else if (fileType === 'dfr') filters.push({ name: 'DFR Standard Files', extensions: ['dfr'] });
-    else if (fileType === 'spdfr')
-      filters.push({ name: 'SaskPower DFR Files', extensions: ['spdfr'] });
-    else filters.push({ name: 'All Project Files', extensions: ['plog', 'dfr', 'spdfr'] });
+    else if (fileType === 'spdfr') filters.push({ name: 'SaskPower DFR Files', extensions: ['spdfr'] });
+    else if (fileType === 'clog') filters.push({ name: 'Combined Log Files', extensions: ['clog'] });
+    else filters.push({ name: 'All Project Files', extensions: ['plog', 'dfr', 'spdfr', 'clog'] });
 
     filters.push({ name: 'All Files', extensions: ['*'] });
 
@@ -347,6 +348,34 @@ app.whenReady().then(() => {
         }
     }
     return { success: false };
+  });
+
+  ipcMain.handle('load-multiple-projects', async (event) => {
+    const window = BrowserWindow.getFocusedWindow();
+    const { filePaths } = await dialog.showOpenDialog(window, {
+      title: 'Import Photos from Files',
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        { name: 'All Project Files', extensions: ['plog', 'dfr', 'spdfr', 'json', 'clog'] },
+        { name: 'Photo Log Files', extensions: ['plog', 'clog'] },
+        { name: 'DFR Files', extensions: ['dfr', 'spdfr'] },
+        { name: 'JSON files', extensions: ['json'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (filePaths && filePaths.length > 0) {
+      try {
+        const filesContent = filePaths.map(filePath => {
+          return fs.readFileSync(filePath, 'utf-8');
+        });
+        return { success: true, data: filesContent };
+      } catch (err) {
+        console.error('Failed to read project files:', err);
+        return { success: false, error: err.message };
+      }
+    }
+    return { success: false, data: [] };
   });
 
   createWindow();

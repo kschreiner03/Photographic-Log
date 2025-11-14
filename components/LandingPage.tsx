@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { DocumentTextIcon, CameraIcon, ClipboardDocumentListIcon, SearchIcon, FolderOpenIcon, EllipsisVerticalIcon } from './icons';
+import { DocumentTextIcon, CameraIcon, ClipboardDocumentListIcon, SearchIcon, FolderOpenIcon, EllipsisVerticalIcon, DocumentDuplicateIcon } from './icons';
 import { AppType } from '../App';
 import { deleteImage, deleteProject, retrieveProject } from './db';
 
@@ -37,6 +37,8 @@ const getReportTypeName = (type: AppType): string => {
             return 'Daily field Report';
         case 'dfrSaskpower':
             return 'Sask Power Daily Field Report';
+        case 'combinedLog':
+            return 'Combined Log';
         default:
             return 'Report';
     }
@@ -153,7 +155,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectApp, onOpenProject })
                         </p>
                     </div>
 
-                    <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                         <AppSelectionCard 
                             title="Photographic Log"
                             description="Create and edit photographic logs with project details and image uploads."
@@ -171,6 +173,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectApp, onOpenProject })
                             description="Daily Field Report tailored for SaskPower projects."
                             icon={<ClipboardDocumentListIcon className="h-16 w-16" />}
                             onClick={() => onSelectApp('dfrSaskpower')}
+                        />
+                         <AppSelectionCard 
+                            title="Combined Log"
+                            description="Combine photos from multiple reports into a single, comprehensive photo log."
+                            icon={<DocumentDuplicateIcon className="h-16 w-16" />}
+                            onClick={() => onSelectApp('combinedLog')}
                         />
                     </div>
                 </div>

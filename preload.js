@@ -5,6 +5,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   saveProject: (data, defaultPath) => ipcRenderer.invoke('save-project', data, defaultPath),
   loadProject: (fileType) => ipcRenderer.invoke('load-project', fileType),
+  loadMultipleProjects: () => ipcRenderer.invoke('load-multiple-projects'),
   savePdf: (defaultPath) => ipcRenderer.invoke('save-pdf', defaultPath),
   readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
   onOpenFile: (callback) => ipcRenderer.on('open-file-path', (_event, value) => callback(value)),
