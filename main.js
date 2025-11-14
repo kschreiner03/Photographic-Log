@@ -70,16 +70,23 @@ function createHelpWindow() {
   }
 
   helpWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 960,
+    height: 720,
     title: 'Help - X-TES Digital Reporting',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
     },
   });
+  
+  // Handle dev vs. production paths
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    const helpUrl = new URL('help.html', MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    helpWindow.loadURL(helpUrl.href);
+  } else {
+    helpWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/help.html`));
+  }
 
-  helpWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/help.html`));
 
   helpWindow.on('closed', () => {
     helpWindow = null;
@@ -108,7 +115,19 @@ const menuTemplate = [
     : []),
   {
     label: 'File',
-    submenu: [process.platform === 'darwin' ? { role: 'close' } : { role: 'quit' }],
+    submenu: [
+        {
+            label: 'Download Photos',
+            click: () => {
+                if (mainWindow) {
+                    mainWindow.webContents.send('download-photos');
+                }
+            },
+            accelerator: 'CmdOrCtrl+D'
+        },
+        { type: 'separator' },
+        process.platform === 'darwin' ? { role: 'close' } : { role: 'quit' }
+    ],
   },
   {
     label: 'Help',
@@ -264,6 +283,26 @@ app.whenReady().then(() => {
         console.error('Failed to save PDF file:', err);
         return { success: false, error: err.message };
       }
+    }
+    return { success: false };
+  });
+
+  ipcMain.handle('save-zip-file', async (event, data, defaultPath) => {
+    const window = BrowserWindow.getFocusedWindow();
+    const { filePath } = await dialog.showSaveDialog(window, {
+        title: 'Save Photos As...',
+        defaultPath: defaultPath,
+        filters: [{ name: 'Zip Files', extensions: ['zip'] }],
+    });
+
+    if (filePath) {
+        try {
+            fs.writeFileSync(filePath, Buffer.from(data));
+            return { success: true, path: filePath };
+        } catch (err) {
+            console.error('Failed to save zip file:', err);
+            return { success: false, error: err.message };
+        }
     }
     return { success: false };
   });

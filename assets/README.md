@@ -21,3 +21,12 @@ To ensure the application has the correct icon for the installer, desktop shortc
 4.  **How to Create**: You can use online converters to create an `.icns` file from a PNG. Search for "PNG to ICNS converter". For best results, start with a high-resolution square image (e.g., 1024x1024).
 
 The build process is already configured in `forge.config.js` to automatically find and use the correct icon for each platform.
+
+## Application Images
+
+The following images are stored locally and used within the application's UI.
+
+-   `xterra-logo.jpg`: The main company logo used in all report headers.
+-   `thunderchild-logo.jpg`: The partner company logo used in the footer of the SOP/Help document.
+-   `landscape.jpg`: The decorative background image used on the main landing page.
+-   `loading-error.gif`: An animated GIF displayed in modal popups for actions like validation errors.

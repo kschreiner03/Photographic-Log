@@ -1,15 +1,17 @@
-import React, { useState, ReactElement, useEffect, useRef } from 'react';
+import React, { useState, ReactElement, useEffect, useRef, useCallback } from 'react';
 import type { DfrSaskpowerData, ChecklistOption, PhotoData, LocationActivity, ActivityBlock } from '../types';
-import { DownloadIcon, SaveIcon, FolderOpenIcon, ArrowLeftIcon, PlusIcon, TrashIcon, ArrowUpIcon, ArrowDownIcon, CloseIcon } from './icons';
+import { DownloadIcon, SaveIcon, FolderOpenIcon, ArrowLeftIcon, PlusIcon, TrashIcon, ArrowUpIcon, ArrowDownIcon, CloseIcon, FolderArrowDownIcon } from './icons';
 import { AppType } from '../App';
 import PhotoEntry from './PhotoEntry';
 import { storeImage, retrieveImage, deleteImage, storeProject, deleteProject, retrieveProject } from './db';
 import { SpecialCharacterPalette } from './SpecialCharacterPalette';
 import BulletPointEditor from './BulletPointEditor';
 import ImageModal from './ImageModal';
+import ActionStatusModal from './ActionStatusModal';
 
 // @ts-ignore
 const { jsPDF } = window.jspdf;
+declare const JSZip: any;
 
 // --- Recent Projects Utility ---
 const RECENT_PROJECTS_KEY = 'xtec_recent_projects';
@@ -94,9 +96,16 @@ const addRecentProject = async (projectData: any, projectInfo: { type: AppType; 
 const formatDateForRecentProject = (dateString: string): string => {
     if (!dateString) return '';
     try {
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return dateString;
-        return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+        const tempDate = new Date(dateString);
+        if (isNaN(tempDate.getTime())) return dateString;
+        const year = tempDate.getFullYear();
+        const month = tempDate.getMonth();
+        const day = tempDate.getDate();
+        const utcDate = new Date(Date.UTC(year, month, day));
+        const formattedYear = utcDate.getUTCFullYear();
+        const formattedMonth = String(utcDate.getUTCMonth() + 1).padStart(2, '0');
+        const formattedDay = String(utcDate.getUTCDate()).padStart(2, '0');
+        return `${formattedYear}/${formattedMonth}/${formattedDay}`;
     } catch (e) { return dateString; }
 };
 // --- End Utility ---
@@ -149,19 +158,90 @@ const autoCropImage = (imageUrl: string): Promise<string> => {
 };
 
 const formatDateForFilename = (dateString: string): string => {
-    if (!dateString || !dateString.includes('-')) return 'NoDate'; // Expects YYYY-MM-DD
+    if (!dateString) return 'NoDate';
     try {
-        const parts = dateString.split('-');
-        if (parts.length === 3) {
-            const [year, month, day] = parts;
-            return `${month}-${day}-${year}`;
+        const tempDate = new Date(dateString);
+        if (isNaN(tempDate.getTime())) {
+            return dateString.replace(/[^a-z0-9]/gi, '');
         }
-        return dateString.replace(/[^a-z0-9]/gi, '');
+        const year = tempDate.getFullYear();
+        const month = tempDate.getMonth();
+        const day = tempDate.getDate();
+        const utcDate = new Date(Date.UTC(year, month, day));
+        const formattedMonth = String(utcDate.getUTCMonth() + 1).padStart(2, '0');
+        const formattedDay = String(utcDate.getUTCDate()).padStart(2, '0');
+        const formattedYear = utcDate.getUTCFullYear();
+        return `${formattedMonth}-${formattedDay}-${formattedYear}`;
     } catch (e) {
         return dateString.replace(/[^a-z0-9]/gi, '');
     }
 };
 // --- End Helper Functions ---
+
+
+const PdfPreviewModal: React.FC<{ url: string; filename: string; onClose: () => void; }> = ({ url, filename, onClose }) => {
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        document.body.style.overflow = 'hidden';
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            document.body.style.overflow = 'auto';
+            if (url && url.startsWith('blob:')) {
+                URL.revokeObjectURL(url);
+            }
+        };
+    }, [onClose, url]);
+
+    const handleDownload = () => {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex flex-col items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
+            <div className="bg-white rounded-lg shadow-2xl w-full h-full flex flex-col">
+                <div className="flex justify-between items-center p-4 border-b bg-gray-50">
+                    <h3 className="text-xl font-bold text-gray-800">PDF Preview</h3>
+                    <div className="flex items-center gap-4">
+                        <button onClick={handleDownload} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200">
+                            <DownloadIcon />
+                            <span>Download PDF</span>
+                        </button>
+                        <button onClick={onClose} className="text-gray-500 hover:text-gray-800 transition-colors" aria-label="Close preview">
+                            <CloseIcon className="h-8 w-8" />
+                        </button>
+                    </div>
+                </div>
+                <div className="flex-grow bg-gray-200">
+                    <object data={url} type="application/pdf" className="w-full h-full">
+                        <div className="flex flex-col items-center justify-center h-full bg-gray-100 p-8 text-center text-gray-700">
+                            <p className="mb-4 text-lg font-semibold">It appears your browser cannot preview PDFs directly.</p>
+                            <p className="mb-6">You can download the file to view it instead.</p>
+                            <a
+                                href={url}
+                                download={filename}
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200"
+                            >
+                                <DownloadIcon />
+                                <span>Download PDF</span>
+                            </a>
+                        </div>
+                    </object>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 
 // --- UI Components ---
@@ -269,7 +349,11 @@ const DfrSaskpower = ({ onBack, initialData }: DfrSaskpowerProps): ReactElement 
     const [showNoInternetModal, setShowNoInternetModal] = useState(false);
     const [showMigrationNotice, setShowMigrationNotice] = useState(false);
     const [enlargedImageUrl, setEnlargedImageUrl] = useState<string | null>(null);
+    const [pdfPreview, setPdfPreview] = useState<{ url: string; filename: string } | null>(null);
+    const [showStatusModal, setShowStatusModal] = useState(false);
+    const [statusMessage, setStatusMessage] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const isDownloadingRef = useRef(false);
 
     const processLoadedData = async (projectData: any) => {
         const { photosData: loadedPhotos, ...saskpowerData } = projectData;
@@ -492,6 +576,7 @@ const DfrSaskpower = ({ onBack, initialData }: DfrSaskpowerProps): ReactElement 
             if (!photo.location) newErrors.add(`${prefix}location`);
             if (!photo.description) newErrors.add(`${prefix}description`);
             if (!photo.imageUrl) newErrors.add(`${prefix}imageUrl`);
+            if (!photo.isMap && !photo.direction) newErrors.add(`${prefix}direction`);
         });
 
         setErrors(newErrors);
@@ -579,7 +664,7 @@ const DfrSaskpower = ({ onBack, initialData }: DfrSaskpowerProps): ReactElement 
             // Define fields for each column
             const col1Fields = [
                 { label: 'PROPONENT', value: data.proponent },
-                { label: 'PROJECT NAME', value: data.projectName },
+                { label: 'PROJECT', value: data.projectName },
                 { label: 'LOCATION', value: data.location },
                 { label: 'ENV FILE NUMBER', value: data.envFileNumber },
             ];
@@ -912,7 +997,9 @@ const DfrSaskpower = ({ onBack, initialData }: DfrSaskpowerProps): ReactElement 
             const footerTextY = pageHeight - borderMargin + 4; doc.text(`Page ${i} of ${totalPages}`, pageWidth - borderMargin, footerTextY, { align: 'right' });
         }
         
-        doc.save(filename);
+        const pdfBlob = doc.output('blob');
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        setPdfPreview({ url: pdfUrl, filename });
     };
 
     const handleSaveProject = async () => {
@@ -945,6 +1032,112 @@ const DfrSaskpower = ({ onBack, initialData }: DfrSaskpowerProps): ReactElement 
             URL.revokeObjectURL(link.href);
         }
     };
+    
+    const handleDownloadPhotos = useCallback(async () => {
+        if (isDownloadingRef.current) return;
+        isDownloadingRef.current = true;
+    
+        try {
+            setStatusMessage('Checking for photos...');
+            setShowStatusModal(true);
+            await new Promise(resolve => setTimeout(resolve, 100));
+    
+            const photosWithImages = photosData.filter(p => p.imageUrl);
+    
+            if (photosWithImages.length === 0) {
+                setStatusMessage('No photos found to download.');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                setShowStatusModal(false);
+                return;
+            }
+    
+            setStatusMessage(`Preparing ${photosWithImages.length} photos...`);
+            await new Promise(resolve => setTimeout(resolve, 100));
+    
+            const zip = new JSZip();
+            let metadata = '';
+            const sanitizeFilename = (name: string) => name.replace(/[^a-z0-9_.\-]/gi, '_');
+    
+            for (const photo of photosWithImages) {
+                const photoNumberSanitized = sanitizeFilename(photo.photoNumber);
+                const filename = `${photoNumberSanitized}.jpg`;
+    
+                metadata += `---
+File: ${filename}
+Photo Number: ${photo.photoNumber}
+Date: ${photo.date || 'N/A'}
+Location: ${photo.location || 'N/A'}
+Direction: ${photo.direction || 'N/A'}
+Description: ${photo.description || 'N/A'}
+---\n\n`;
+    
+                const response = await fetch(photo.imageUrl!);
+                const blob = await response.blob();
+                zip.file(filename, blob);
+            }
+    
+            zip.file('metadata.txt', metadata);
+            
+            setStatusMessage('Creating zip file...');
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            const sanitize = (name: string) => name.replace(/[^a-z0-9_]/gi, '-').toLowerCase();
+            const zipFilename = `${sanitize(data.projectNumber) || 'project'}_${sanitize(data.projectName) || 'saskpower-dfr'}_Photos.zip`;
+            
+            // @ts-ignore
+            if (window.electronAPI?.saveZipFile) {
+                const buffer = await zip.generateAsync({ type: 'arraybuffer' });
+                // @ts-ignore
+                await window.electronAPI.saveZipFile(buffer, zipFilename);
+            } else {
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(zipBlob);
+                link.setAttribute('download', zipFilename);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            }
+        } finally {
+            setShowStatusModal(false);
+            isDownloadingRef.current = false;
+        }
+    }, [photosData, data]);
+
+    // Create a ref to hold the latest handler function.
+    const downloadHandlerRef = useRef(handleDownloadPhotos);
+    useEffect(() => {
+        downloadHandlerRef.current = handleDownloadPhotos;
+    }, [handleDownloadPhotos]);
+
+    // Create a stable listener function that always calls the latest handler from the ref.
+    const stableListener = useCallback(() => {
+        if (downloadHandlerRef.current) {
+            downloadHandlerRef.current();
+        }
+    }, []);
+
+    // Effect to add and remove the stable listener.
+    useEffect(() => {
+        const api = window.electronAPI;
+        if (api && api.onDownloadPhotos && api.removeAllDownloadPhotosListeners) {
+            // On mount, defensively remove any lingering listeners. This ensures that only
+            // this active component instance reacts to the download command from the main menu.
+            api.removeAllDownloadPhotosListeners();
+            
+            // Then, add the listener for this specific component instance.
+            api.onDownloadPhotos(stableListener);
+        }
+        
+        return () => {
+            // On unmount, clean up the listener we added to prevent memory leaks.
+            if (api && api.removeDownloadPhotosListener) {
+                api.removeDownloadPhotosListener(stableListener);
+            }
+        };
+    }, [stableListener]); // stableListener is memoized, so this effect runs once on mount/unmount.
+
 
     const handleOpenProject = async () => {
         // @ts-ignore
@@ -983,9 +1176,17 @@ const DfrSaskpower = ({ onBack, initialData }: DfrSaskpowerProps): ReactElement 
 
     return (
         <div className="bg-gray-100 min-h-screen">
+            {pdfPreview && (
+                <PdfPreviewModal 
+                    url={pdfPreview.url} 
+                    filename={pdfPreview.filename} 
+                    onClose={() => setPdfPreview(null)} 
+                />
+            )}
             {enlargedImageUrl && (
                 <ImageModal imageUrl={enlargedImageUrl} onClose={() => setEnlargedImageUrl(null)} />
             )}
+            {showStatusModal && <ActionStatusModal message={statusMessage} />}
             <SpecialCharacterPalette />
             <div className="max-w-7xl mx-auto p-4 md:p-8">
                 {showMigrationNotice && (
@@ -1009,7 +1210,7 @@ const DfrSaskpower = ({ onBack, initialData }: DfrSaskpowerProps): ReactElement 
                      <button onClick={onBack} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200">
                         <ArrowLeftIcon /> <span>Home</span>
                     </button>
-                    <h1 className="text-2xl font-bold text-gray-700">DFR - SaskPower</h1>
+                    <h1 className="text-2xl font-bold text-gray-700">SaskPower Daily Field Report</h1>
                     <div className="flex flex-wrap justify-end gap-2">
                         <button onClick={handleOpenProject} className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200">
                             <FolderOpenIcon /> <span>Open</span>
@@ -1024,6 +1225,12 @@ const DfrSaskpower = ({ onBack, initialData }: DfrSaskpowerProps): ReactElement 
                         <button onClick={handleSaveProject} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200">
                             <SaveIcon /> <span>Save</span>
                         </button>
+                        {/* @ts-ignore */}
+                        {!window.electronAPI && (
+                            <button onClick={handleDownloadPhotos} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200">
+                                <FolderArrowDownIcon /> <span>Download Photos</span>
+                            </button>
+                        )}
                         <button onClick={handleSavePdf} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200">
                             <DownloadIcon /> <span>Save PDF</span>
                         </button>
@@ -1031,55 +1238,46 @@ const DfrSaskpower = ({ onBack, initialData }: DfrSaskpowerProps): ReactElement 
                 </div>
 
                 <div className="space-y-8">
-                    <Section title="Project Details">
+                    {/* Header Section */}
+                    <Section title="Report Information">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                            {/* Left Column */}
-                            <div className="space-y-4">
-                                <EditableField label="Proponent" value={data.proponent} onChange={v => handleChange('proponent', v)} isInvalid={errors.has('proponent')} />
-                                <EditableField label="Project Name" value={data.projectName} onChange={v => handleChange('projectName', v)} placeholder="B1K (41073835)" isInvalid={errors.has('projectName')} />
-                                <EditableField label="Location" value={data.location} onChange={v => handleChange('location', v)} placeholder="Estevan" isInvalid={errors.has('location')} />
-                                <EditableField label="ENV File Number" value={data.envFileNumber} onChange={v => handleChange('envFileNumber', v)} placeholder="22-01-00320" isInvalid={errors.has('envFileNumber')} />
-                            </div>
-                            {/* Right Column */}
-                            <div className="space-y-4">
-                                <EditableField label="Date" value={data.date} onChange={v => handleChange('date', v)} type="date" isInvalid={errors.has('date')} />
-                                <EditableField label="X-Terra Project Number" value={data.projectNumber} onChange={v => handleChange('projectNumber', v)} placeholder="25600" isInvalid={errors.has('projectNumber')} />
-                                <EditableField label="Monitor" value={data.environmentalMonitor} onChange={v => handleChange('environmentalMonitor', v)} placeholder="Jeff Kardas" isInvalid={errors.has('environmentalMonitor')} />
-                                <EditableField label="Vendor" value={data.vendorAndForeman} onChange={v => handleChange('vendorAndForeman', v)} placeholder="Davey Tree, Alex Kensington" isInvalid={errors.has('vendorAndForeman')} />
-                            </div>
+                            <EditableField label="Date" value={data.date} onChange={v => handleChange('date', v)} placeholder="October 1, 2025" isInvalid={errors.has('date')} />
+                            <EditableField label="X-Terra Project #" value={data.projectNumber} onChange={v => handleChange('projectNumber', v)} isInvalid={errors.has('projectNumber')} />
+                            <EditableField label="Proponent" value={data.proponent} onChange={v => handleChange('proponent', v)} isInvalid={errors.has('proponent')} />
+                            <EditableField label="ENV File Number" value={data.envFileNumber} onChange={v => handleChange('envFileNumber', v)} isInvalid={errors.has('envFileNumber')} />
+                            <EditableField label="Project" value={data.projectName} onChange={v => handleChange('projectName', v)} isInvalid={errors.has('projectName')} />
+                            <EditableField label="Vendor & Foreman" value={data.vendorAndForeman} onChange={v => handleChange('vendorAndForeman', v)} isInvalid={errors.has('vendorAndForeman')} />
+                            <EditableField label="Location" value={data.location} onChange={v => handleChange('location', v)} isTextArea rows={2} isInvalid={errors.has('location')} />
+                            <EditableField label="Environmental Monitor" value={data.environmentalMonitor} onChange={v => handleChange('environmentalMonitor', v)} isInvalid={errors.has('environmentalMonitor')} />
+                            <EditableField label="Total Hours Worked" value={data.totalHoursWorked} onChange={v => handleChange('totalHoursWorked', v)} isInvalid={errors.has('totalHoursWorked')} />
                         </div>
                     </Section>
 
-                    <Section title="Project Activities">
-                        <div className="space-y-4">
-                            <BulletPointEditor
-                                label="General Project Activity (detailed description with timestamps)"
-                                value={data.generalActivity}
-                                onChange={v => handleChange('generalActivity', v)}
-                                rows={8}
-                                placeholder={activityPlaceholder}
-                                isInvalid={errors.has('generalActivity')}
-                            />
-                        </div>
-                        <div className="pt-4">
-                           <EditableField label="Total Hours Worked" value={data.totalHoursWorked} onChange={v => handleChange('totalHoursWorked', v)} type="number" placeholder="6" isInvalid={errors.has('totalHoursWorked')} />
-                        </div>
+                    {/* Checklist Section */}
+                    <Section title="Safety Checklist">
+                        <ChecklistRow label="Completed/Reviewed X-Terra Tailgate" value={data.completedTailgate} onChange={v => handleChange('completedTailgate', v)} />
+                        <ChecklistRow label="Reviewed/Signed Crew Tailgate" value={data.reviewedTailgate} onChange={v => handleChange('reviewedTailgate', v)} />
+                        <ChecklistRow label="Reviewed Permit(s) with Crew(s)" value={data.reviewedPermits} onChange={v => handleChange('reviewedPermits', v)} />
                     </Section>
                     
-                    <Section title="Tailgate & Permit Checklist">
-                        <ChecklistRow label="Completed/Reviewed X-Terra Tailgate:" value={data.completedTailgate} onChange={v => handleChange('completedTailgate', v)} />
-                        <ChecklistRow label="Reviewed/Signed Crew Tailgate:" value={data.reviewedTailgate} onChange={v => handleChange('reviewedTailgate', v)} />
-                        <ChecklistRow label="Reviewed Permit(s) with Crew(s):" value={data.reviewedPermits} onChange={v => handleChange('reviewedPermits', v)} />
+                    {/* Main Body Sections */}
+                    <Section title="Project Activities & Observations">
+                         <BulletPointEditor
+                            label="Project Activities (detailed description with timestamps)"
+                            value={data.generalActivity}
+                            onChange={v => handleChange('generalActivity', v)}
+                            rows={10}
+                            placeholder={activityPlaceholder}
+                            isInvalid={errors.has('generalActivity')}
+                         />
+                         <BulletPointEditor label="X-Terra Equipment Onsite" value={data.equipmentOnsite} onChange={v => handleChange('equipmentOnsite', v)} rows={3} isInvalid={errors.has('equipmentOnsite')} />
+                         <BulletPointEditor label="Weather and Ground Conditions" value={data.weatherAndGroundConditions} onChange={v => handleChange('weatherAndGroundConditions', v)} rows={3} isInvalid={errors.has('weatherAndGroundConditions')} />
+                         <BulletPointEditor label="Environmental Protection Measures and Mitigation" value={data.environmentalProtection} onChange={v => handleChange('environmentalProtection', v)} rows={4} isInvalid={errors.has('environmentalProtection')} />
+                         <BulletPointEditor label="Wildlife Observations" value={data.wildlifeObservations} onChange={v => handleChange('wildlifeObservations', v)} rows={3} isInvalid={errors.has('wildlifeObservations')} />
+                         <BulletPointEditor label="Future Monitoring Requirements" value={data.futureMonitoring} onChange={v => handleChange('futureMonitoring', v)} rows={3} isInvalid={errors.has('futureMonitoring')} />
                     </Section>
 
-                    <Section title="Site Conditions & Observations">
-                         <BulletPointEditor label="X-Terra Equipment Onsite:" value={data.equipmentOnsite} onChange={v => handleChange('equipmentOnsite', v)} rows={2} placeholder="-X-Terra Quad" isInvalid={errors.has('equipmentOnsite')} />
-                         <BulletPointEditor label="Weather and Ground Conditions:" value={data.weatherAndGroundConditions} onChange={v => handleChange('weatherAndGroundConditions', v)} rows={3} placeholder="Cloudy, ground is stable." isInvalid={errors.has('weatherAndGroundConditions')} />
-                         <BulletPointEditor label="Environmental Protection Measures and Mitigation:" value={data.environmentalProtection} onChange={v => handleChange('environmentalProtection', v)} rows={3} placeholder="AHPP, ENV Clearance, and BMPs" isInvalid={errors.has('environmentalProtection')} />
-                         <BulletPointEditor label="Wildlife Observations:" value={data.wildlifeObservations} onChange={v => handleChange('wildlifeObservations', v)} rows={3} placeholder="Common Raven, Western Meadowlark, Ring-necked Pheasant" isInvalid={errors.has('wildlifeObservations')} />
-                         <BulletPointEditor label="Future Monitoring Requirements:" value={data.futureMonitoring} onChange={v => handleChange('futureMonitoring', v)} rows={3} placeholder="All EM sites completed on B1K transmission line." isInvalid={errors.has('futureMonitoring')} />
-                    </Section>
-
+                    {/* Photo Log Section */}
                     <div className="border-t-4 border-[#007D8C] my-10" />
                     <h2 className="text-3xl font-bold text-gray-700 text-center">Photographic Log</h2>
 
@@ -1098,21 +1296,13 @@ const DfrSaskpower = ({ onBack, initialData }: DfrSaskpowerProps): ReactElement 
                                     onImageClick={setEnlargedImageUrl}
                                     errors={getPhotoErrors(photo.id)}
                                     showDirectionField={!photo.isMap}
-                                    isLocationLocked={false}
                                 />
                                 {index < photosData.length - 1 && (
                                     <div className="relative my-6 flex items-center justify-center">
-                                        <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                                            <div className="w-full border-t-2 border-gray-300"></div>
-                                        </div>
+                                        <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t-2 border-gray-300"></div></div>
                                         <div className="relative">
-                                            <button
-                                                onClick={() => addPhoto(index)}
-                                                className="bg-white hover:bg-gray-100 text-[#007D8C] font-bold py-2 px-4 rounded-full border border-gray-300 inline-flex items-center gap-2 transition duration-200 shadow-sm"
-                                                aria-label={`Add new photo after photo ${index + 1}`}
-                                            >
-                                                <PlusIcon />
-                                                <span>Add Photo Here</span>
+                                            <button onClick={() => addPhoto(index)} className="bg-white hover:bg-gray-100 text-[#007D8C] font-bold py-2 px-4 rounded-full border border-gray-300 inline-flex items-center gap-2 transition duration-200 shadow-sm">
+                                                <PlusIcon /><span>Add Photo Here</span>
                                             </button>
                                         </div>
                                     </div>
@@ -1121,17 +1311,15 @@ const DfrSaskpower = ({ onBack, initialData }: DfrSaskpowerProps): ReactElement 
                         ))}
                     </div>
                     
-                    <div className="mt-8 flex justify-center gap-4">
-                        <button
-                            onClick={() => addPhoto()}
-                            className="bg-[#007D8C] hover:bg-[#006b7a] text-white font-bold py-3 px-6 rounded-lg shadow-md inline-flex items-center gap-2 transition duration-200 text-lg"
-                        >
-                            <PlusIcon />
-                            <span>Add Photo</span>
+                    <div className="mt-8 flex justify-center">
+                        <button onClick={() => addPhoto()} className="bg-[#007D8C] hover:bg-[#006b7a] text-white font-bold py-3 px-6 rounded-lg shadow-md inline-flex items-center gap-2 transition duration-200 text-lg">
+                            <PlusIcon /><span>Add Photo</span>
                         </button>
                     </div>
-
                 </div>
+                <footer className="text-center text-gray-500 text-sm py-4 mt-8">
+                    X-TES Digital Reporting v1.0.2
+                </footer>
             </div>
             {showUnsupportedFileModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 transition-opacity duration-300">
@@ -1183,20 +1371,12 @@ const DfrSaskpower = ({ onBack, initialData }: DfrSaskpowerProps): ReactElement 
                     </div>
                 </div>
             )}
-            {showNoInternetModal && (
+             {showNoInternetModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
                     <div className="bg-white p-8 rounded-lg shadow-2xl text-center relative max-w-md">
-                        <button
-                            onClick={() => setShowNoInternetModal(false)}
-                            className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-700"
-                            aria-label="Close"
-                        >
-                            <CloseIcon className="h-6 w-6" />
-                        </button>
+                        <button onClick={() => setShowNoInternetModal(false)} className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-700" aria-label="Close"><CloseIcon className="h-6 w-6" /></button>
                         <h3 className="text-2xl font-bold mb-2 text-gray-800">No Internet Connection</h3>
-                        <p className="text-gray-600">
-                            An internet connection is required to save the PDF. Please connect to the internet and try again.
-                        </p>
+                        <p className="text-gray-600">An internet connection is required to save the PDF. Please connect to the internet and try again.</p>
                     </div>
                 </div>
             )}

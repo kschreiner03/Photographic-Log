@@ -57,6 +57,12 @@ export const FolderOpenIcon: React.FC<{ className?: string }> = ({ className = "
     </svg>
 );
 
+export const FolderArrowDownIcon: React.FC<{ className?: string }> = ({ className = "h-7 w-7" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 13.5l3 3m0 0l3-3m-3 3v-6m1.06-4.19-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.25a1.5 1.5 0 01-1.06-.44z" />
+    </svg>
+);
+
 export const DocumentTextIcon: React.FC<{ className?: string }> = ({ className = "h-7 w-7" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
@@ -91,4 +97,17 @@ export const ArrowsPointingOutIcon: React.FC<{ className?: string }> = ({ classN
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9m5.25 11.25v-4.5m0 4.5h-4.5m4.5 0L15 15" />
   </svg>
+);
+
+export const EyeIcon: React.FC<{ className?: string }> = ({ className = "h-7 w-7" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639l4.418-5.523A1.012 1.012 0 0 1 7.23 6a1.012 1.012 0 0 1 .697.288l1.455 1.818a.99.99 0 0 0 1.258 0l1.455-1.818a1.012 1.012 0 0 1 .697-.288h.002a1.012 1.012 0 0 1 .697.288l4.418 5.523a1.012 1.012 0 0 1 0 .639l-4.418 5.523a1.012 1.012 0 0 1-.697.288h-.002a1.012 1.012 0 0 1-.697-.288l-1.455-1.818a.99.99 0 0 0-1.258 0l-1.455 1.818a1.012 1.012 0 0 1-.697.288h-.002a1.012 1.012 0 0 1-.697-.288L2.036 12.322Z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+  </svg>
+);
+
+export const PencilSquareIcon: React.FC<{ className?: string }> = ({ className = "h-7 w-7" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+    </svg>
 );

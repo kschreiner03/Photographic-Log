@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import LandingPage, { RecentProject } from './components/LandingPage';
 import PhotoLog from './components/PhotoLog';

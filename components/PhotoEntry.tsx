@@ -19,7 +19,7 @@ interface PhotoEntryProps {
   onImageClick?: (imageUrl: string) => void;
 }
 
-const EditableField: React.FC<{ label: string; value: string; onChange: (value: string) => void; isTextArea?: boolean; type?: 'text' | 'date', printable?: boolean; isInvalid?: boolean; readOnly?: boolean }> = ({ label, value, onChange, isTextArea = false, type = 'text', printable = false, isInvalid = false, readOnly = false }) => {
+const EditableField: React.FC<{ label: string; value: string; onChange: (value: string) => void; isTextArea?: boolean; printable?: boolean; isInvalid?: boolean; readOnly?: boolean; placeholder?: string; }> = ({ label, value, onChange, isTextArea = false, printable = false, isInvalid = false, readOnly = false, placeholder = '' }) => {
     const commonClasses = "p-1 w-full bg-transparent focus:outline-none transition duration-200 text-base font-normal text-black min-w-0";
     const elementRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
 
@@ -49,50 +49,6 @@ const EditableField: React.FC<{ label: string; value: string; onChange: (value: 
         );
     }
 
-    if (type === 'date') {
-    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const dateValue = e.target.value;
-        if (dateValue) {
-            const dateObj = new Date(dateValue);
-            const formatted = dateObj.toLocaleDateString('en-US', {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric',
-            });
-            onChange(formatted);
-        } else {
-            onChange('');
-        }
-    };
-
-    const commonInputClasses = `p-1 w-full border-b-2 focus:outline-none focus:border-[#007D8C]
-        transition duration-200 bg-transparent text-base font-normal text-black min-w-0
-        ${isInvalid ? 'border-red-500' : 'border-gray-300'}`;
-
-    return (
-        <div className="flex items-baseline gap-2">
-            <label className="text-base font-bold text-black flex-shrink-0 whitespace-nowrap">
-                {label}:
-            </label>
-            <input
-                type="date"
-                value={
-                    value
-                        ? (() => {
-                              const parsed = new Date(value);
-                              if (isNaN(parsed.getTime())) return '';
-                              return parsed.toISOString().split('T')[0];
-                          })()
-                        : ''
-                }
-                onChange={handleDateChange}
-                className={commonInputClasses}
-            />
-        </div>
-    );
-}
-
-
     if (isTextArea) {
         // Description field (stacked layout)
         return (
@@ -104,6 +60,7 @@ const EditableField: React.FC<{ label: string; value: string; onChange: (value: 
                     onChange={(e) => onChange(e.target.value)}
                     rows={4}
                     className={`mt-1 ${commonClasses} ${isInvalid ? 'border-b-2 border-red-500' : ''}`}
+                    placeholder={placeholder}
                 />
             </div>
         );
@@ -118,6 +75,7 @@ const EditableField: React.FC<{ label: string; value: string; onChange: (value: 
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 className={`${commonClasses} ${isInvalid ? 'border-b-2 border-red-500' : ''}`}
+                placeholder={placeholder}
             />
         </div>
     );
@@ -160,7 +118,7 @@ const PhotoEntry: React.FC<PhotoEntryProps> = ({ data, onDataChange, onImageChan
                     {showDirectionField && (
                          <EditableField label="Direction" value={data.direction || ''} onChange={(v) => onDataChange('direction', v)} printable={printable} isInvalid={errors?.has('direction')} />
                     )}
-                    <EditableField label="Date" value={data.date} onChange={(v) => onDataChange('date', v)} type="date" printable={printable} isInvalid={errors?.has('date')} />
+                    <EditableField label="Date" value={data.date} onChange={(v) => onDataChange('date', v)} printable={printable} isInvalid={errors?.has('date')} placeholder="October 1, 2025" />
                     <EditableField label="Location" value={data.location} onChange={(v) => onDataChange('location', v)} printable={printable} isInvalid={errors?.has('location')} readOnly={isLocationLocked} />
                     <EditableField label="Description" value={data.description} onChange={(v) => onDataChange('description', v)} isTextArea printable={printable} isInvalid={errors?.has('description')} />
                 </div>

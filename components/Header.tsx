@@ -29,10 +29,10 @@ const EditableField: React.FC<{
     value: string; 
     onChange: (value: string) => void; 
     isPrintable?: boolean; 
-    type?: 'text' | 'date'; 
     isInvalid?: boolean; 
     isTextArea?: boolean; 
-}> = ({ label, value, onChange, isPrintable = false, type = 'text', isInvalid = false, isTextArea = false }) => {
+    placeholder?: string;
+}> = ({ label, value, onChange, isPrintable = false, isInvalid = false, isTextArea = false, placeholder = '' }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -52,50 +52,6 @@ const EditableField: React.FC<{
         );
     }
 
-    // --- FIXED INDEPENDENT DATE DROPDOWNS ---
-   if (type === 'date') {
-    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const dateValue = e.target.value;
-        if (dateValue) {
-            const dateObj = new Date(dateValue);
-            const formatted = dateObj.toLocaleDateString('en-US', {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric',
-            });
-            onChange(formatted);
-        } else {
-            onChange('');
-        }
-    };
-
-    const commonInputClasses = `p-1 w-full border-b-2 focus:outline-none focus:border-[#007D8C]
-        transition duration-200 bg-transparent text-base font-normal text-black min-w-0
-        ${isInvalid ? 'border-red-500' : 'border-gray-300'}`;
-
-    return (
-        <div className="flex items-baseline gap-2">
-            <label className="text-base font-bold text-black flex-shrink-0 whitespace-nowrap">
-                {label}:
-            </label>
-            <input
-                type="date"
-                value={
-                    value
-                        ? (() => {
-                              const parsed = new Date(value);
-                              if (isNaN(parsed.getTime())) return '';
-                              return parsed.toISOString().split('T')[0];
-                          })()
-                        : ''
-                }
-                onChange={handleDateChange}
-                className={commonInputClasses}
-            />
-        </div>
-    );
-}
-
     const commonInputClasses = `p-1 w-full border-b-2 focus:outline-none focus:border-[#007D8C]
         transition duration-200 bg-transparent text-base font-normal text-black min-w-0
         ${isInvalid ? 'border-red-500' : 'border-gray-300'}`;
@@ -110,6 +66,7 @@ const EditableField: React.FC<{
                     onChange={(e) => onChange(e.target.value)}
                     rows={1}
                     className={`${commonInputClasses} resize-none overflow-hidden`}
+                    placeholder={placeholder}
                 />
             </div>
         );
@@ -124,6 +81,7 @@ const EditableField: React.FC<{
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 className={commonInputClasses}
+                placeholder={placeholder}
             />
         </div>
     );
@@ -153,7 +111,7 @@ const Header: React.FC<HeaderProps> = ({ data, onDataChange, isPrintable = false
                     </div>
                     {/* Right column */}
                     <div className={`flex flex-col ${isPrintable ? 'gap-1' : 'gap-2'}`}>
-                        <EditableField label="Date" value={data.date} onChange={(value) => onDataChange('date', value)} isPrintable={isPrintable} type="date" isInvalid={errors?.has('date')}/>
+                        <EditableField label="Date" value={data.date} onChange={(value) => onDataChange('date', value)} isPrintable={isPrintable} isInvalid={errors?.has('date')} placeholder="October 1, 2025"/>
                         <EditableField label="Project" value={data.projectNumber} onChange={(value) => onDataChange('projectNumber', value)} isPrintable={isPrintable} isInvalid={errors?.has('projectNumber')}/>
                     </div>
                 </div>

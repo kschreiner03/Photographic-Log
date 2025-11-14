@@ -8,4 +8,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   savePdf: (defaultPath) => ipcRenderer.invoke('save-pdf', defaultPath),
   readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
   onOpenFile: (callback) => ipcRenderer.on('open-file-path', (_event, value) => callback(value)),
+  onDownloadPhotos: (callback) => ipcRenderer.on('download-photos', callback),
+  removeDownloadPhotosListener: (callback) => ipcRenderer.removeListener('download-photos', callback),
+  removeAllDownloadPhotosListeners: () => ipcRenderer.removeAllListeners('download-photos'),
+  saveZipFile: (data, defaultPath) => ipcRenderer.invoke('save-zip-file', data, defaultPath),
 });

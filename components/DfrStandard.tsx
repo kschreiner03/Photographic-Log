@@ -1,17 +1,19 @@
-import React, { useState, ReactElement, useEffect, useRef } from 'react';
+import React, { useState, ReactElement, useEffect, useRef, useCallback } from 'react';
 import { DfrHeader } from './DfrHeader';
 import PhotoEntry from './PhotoEntry';
 import type { DfrHeaderData, DfrStandardBodyData, PhotoData, ActivityBlock, LocationActivity } from '../types';
-import { PlusIcon, DownloadIcon, SaveIcon, FolderOpenIcon, ArrowLeftIcon, TrashIcon, ArrowUpIcon, ArrowDownIcon, CloseIcon } from './icons';
+import { PlusIcon, DownloadIcon, SaveIcon, FolderOpenIcon, ArrowLeftIcon, TrashIcon, ArrowUpIcon, ArrowDownIcon, CloseIcon, FolderArrowDownIcon } from './icons';
 import { AppType } from '../App';
 import { storeImage, retrieveImage, deleteImage, storeProject, deleteProject, retrieveProject } from './db';
 import { SpecialCharacterPalette } from './SpecialCharacterPalette';
 import BulletPointEditor from './BulletPointEditor';
 import ImageModal from './ImageModal';
+import ActionStatusModal from './ActionStatusModal';
 
 
 // @ts-ignore
 const { jsPDF } = window.jspdf;
+declare const JSZip: any;
 
 const dfrPlaceholders = {
     header: {
@@ -19,7 +21,7 @@ const dfrPlaceholders = {
         projectName: "Rush Lake SWD Pipeline",
         location: "Rush Lake Thermal (NW-2, NE-3, NW-3-48-21 W3M)",
         projectNumber: "25159",
-        monitor: "Sonia Hanson",
+        monitor: "John Doe",
         envFileValue: "24-S-00084"
     },
     body: {
@@ -186,6 +188,70 @@ const autoCropImage = (imageUrl: string): Promise<string> => {
     });
 };
 
+const PdfPreviewModal: React.FC<{ url: string; filename: string; onClose: () => void; }> = ({ url, filename, onClose }) => {
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        document.body.style.overflow = 'hidden';
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            document.body.style.overflow = 'auto';
+            if (url && url.startsWith('blob:')) {
+                URL.revokeObjectURL(url);
+            }
+        };
+    }, [onClose, url]);
+
+    const handleDownload = () => {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex flex-col items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
+            <div className="bg-white rounded-lg shadow-2xl w-full h-full flex flex-col">
+                <div className="flex justify-between items-center p-4 border-b bg-gray-50">
+                    <h3 className="text-xl font-bold text-gray-800">PDF Preview</h3>
+                    <div className="flex items-center gap-4">
+                        <button onClick={handleDownload} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200">
+                            <DownloadIcon />
+                            <span>Download PDF</span>
+                        </button>
+                        <button onClick={onClose} className="text-gray-500 hover:text-gray-800 transition-colors" aria-label="Close preview">
+                            <CloseIcon className="h-8 w-8" />
+                        </button>
+                    </div>
+                </div>
+                <div className="flex-grow bg-gray-200">
+                    <object data={url} type="application/pdf" className="w-full h-full">
+                        <div className="flex flex-col items-center justify-center h-full bg-gray-100 p-8 text-center text-gray-700">
+                            <p className="mb-4 text-lg font-semibold">It appears your browser cannot preview PDFs directly.</p>
+                            <p className="mb-6">You can download the file to view it instead.</p>
+                            <a
+                                href={url}
+                                download={filename}
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200"
+                            >
+                                <DownloadIcon />
+                                <span>Download PDF</span>
+                            </a>
+                        </div>
+                    </object>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 interface DfrStandardProps {
   onBack: () => void;
@@ -195,33 +261,46 @@ interface DfrStandardProps {
 const formatDateForRecentProject = (dateString: string): string => {
     if (!dateString) return '';
     try {
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) {
-            return dateString;
+        const tempDate = new Date(dateString);
+        if (isNaN(tempDate.getTime())) {
+            return dateString; // Return original if invalid
         }
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}/${month}/${day}`;
+        // Use local methods to get the components of the date the user intended
+        const year = tempDate.getFullYear();
+        const month = tempDate.getMonth();
+        const day = tempDate.getDate();
+
+        // Reconstruct as a UTC date to avoid timezone shifts during formatting
+        const utcDate = new Date(Date.UTC(year, month, day));
+        
+        const formattedYear = utcDate.getUTCFullYear();
+        const formattedMonth = String(utcDate.getUTCMonth() + 1).padStart(2, '0');
+        const formattedDay = String(utcDate.getUTCDate()).padStart(2, '0');
+
+        return `${formattedYear}/${formattedMonth}/${formattedDay}`;
     } catch (e) {
-        return dateString;
+        return dateString; // Fallback
     }
 };
 
 const formatDateForFilename = (dateString: string): string => {
     if (!dateString) return 'NoDate';
     try {
-        // e.g., "October 23, 2025"
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) {
+        const tempDate = new Date(dateString);
+        if (isNaN(tempDate.getTime())) {
             return dateString.replace(/[^a-z0-9]/gi, '');
         }
-        
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed
-        const year = date.getFullYear();
+        const year = tempDate.getFullYear();
+        const month = tempDate.getMonth();
+        const day = tempDate.getDate();
 
-        return `${month}-${day}-${year}`;
+        const utcDate = new Date(Date.UTC(year, month, day));
+        
+        const formattedMonth = String(utcDate.getUTCMonth() + 1).padStart(2, '0');
+        const formattedDay = String(utcDate.getUTCDate()).padStart(2, '0');
+        const formattedYear = utcDate.getUTCFullYear();
+        
+        return `${formattedMonth}-${formattedDay}-${formattedYear}`;
     } catch (e) {
         // A simple fallback for unexpected formats
         return dateString.replace(/[^a-z0-9]/gi, '');
@@ -335,7 +414,11 @@ const DfrStandard = ({ onBack, initialData }: DfrStandardProps): ReactElement =>
     const [showMigrationNotice, setShowMigrationNotice] = useState(false);
     const [enlargedImageUrl, setEnlargedImageUrl] = useState<string | null>(null);
     const [showUnsupportedFileModal, setShowUnsupportedFileModal] = useState<boolean>(false);
+    const [pdfPreview, setPdfPreview] = useState<{ url: string; filename: string } | null>(null);
+    const [showStatusModal, setShowStatusModal] = useState(false);
+    const [statusMessage, setStatusMessage] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const isDownloadingRef = useRef(false);
 
      const parseAndLoadProject = async (fileContent: string) => {
         try {
@@ -671,6 +754,113 @@ const DfrStandard = ({ onBack, initialData }: DfrStandardProps): ReactElement =>
             URL.revokeObjectURL(link.href);
         }
     };
+    
+    const handleDownloadPhotos = useCallback(async () => {
+        if (isDownloadingRef.current) return;
+        isDownloadingRef.current = true;
+    
+        try {
+            setStatusMessage('Checking for photos...');
+            setShowStatusModal(true);
+            await new Promise(resolve => setTimeout(resolve, 100));
+    
+            const photosWithImages = photosData.filter(p => p.imageUrl);
+    
+            if (photosWithImages.length === 0) {
+                setStatusMessage('No photos found to download.');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                setShowStatusModal(false);
+                return;
+            }
+    
+            setStatusMessage(`Preparing ${photosWithImages.length} photos...`);
+            await new Promise(resolve => setTimeout(resolve, 100));
+    
+            const zip = new JSZip();
+            let metadata = '';
+            const sanitizeFilename = (name: string) => name.replace(/[^a-z0-9_.\-]/gi, '_');
+    
+            for (const photo of photosWithImages) {
+                const photoNumberSanitized = sanitizeFilename(photo.photoNumber);
+                const filename = `${photoNumberSanitized}.jpg`;
+    
+                metadata += `---
+File: ${filename}
+Photo Number: ${photo.photoNumber}
+Date: ${photo.date || 'N/A'}
+Location: ${photo.location || 'N/A'}
+Direction: ${photo.direction || 'N/A'}
+Description: ${photo.description || 'N/A'}
+---\n\n`;
+    
+                const response = await fetch(photo.imageUrl!);
+                const blob = await response.blob();
+                zip.file(filename, blob);
+            }
+    
+            zip.file('metadata.txt', metadata);
+            
+            setStatusMessage('Creating zip file...');
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            const sanitize = (name: string) => name.replace(/[^a-z0-9_]/gi, '-').toLowerCase();
+            const zipFilename = `${sanitize(headerData.projectNumber) || 'project'}_${sanitize(headerData.projectName) || 'dfr'}_Photos.zip`;
+            
+            // @ts-ignore
+            if (window.electronAPI?.saveZipFile) {
+                const buffer = await zip.generateAsync({ type: 'arraybuffer' });
+                // @ts-ignore
+                await window.electronAPI.saveZipFile(buffer, zipFilename);
+            } else {
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(zipBlob);
+                link.setAttribute('download', zipFilename);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            }
+    
+        } finally {
+            setShowStatusModal(false);
+            isDownloadingRef.current = false;
+        }
+    }, [photosData, headerData]);
+
+    // Create a ref to hold the latest handler function.
+    const downloadHandlerRef = useRef(handleDownloadPhotos);
+    useEffect(() => {
+        downloadHandlerRef.current = handleDownloadPhotos;
+    }, [handleDownloadPhotos]);
+
+    // Create a stable listener function that always calls the latest handler from the ref.
+    const stableListener = useCallback(() => {
+        if (downloadHandlerRef.current) {
+            downloadHandlerRef.current();
+        }
+    }, []);
+
+    // Effect to add and remove the stable listener.
+    useEffect(() => {
+        const api = window.electronAPI;
+        if (api && api.onDownloadPhotos && api.removeAllDownloadPhotosListeners) {
+            // On mount, defensively remove any lingering listeners. This ensures that only
+            // this active component instance reacts to the download command from the main menu.
+            api.removeAllDownloadPhotosListeners();
+            
+            // Then, add the listener for this specific component instance.
+            api.onDownloadPhotos(stableListener);
+        }
+        
+        return () => {
+            // On unmount, clean up the listener we added to prevent memory leaks.
+            if (api && api.removeDownloadPhotosListener) {
+                api.removeDownloadPhotosListener(stableListener);
+            }
+        };
+    }, [stableListener]); // stableListener is memoized, so this effect runs once on mount/unmount.
+
 
     const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -703,7 +893,8 @@ const DfrStandard = ({ onBack, initialData }: DfrStandardProps): ReactElement =>
         // Header validation
         const requiredHeaderKeys: (keyof DfrHeaderData)[] = ['proponent', 'projectName', 'location', 'date', 'projectNumber', 'monitor'];
         requiredHeaderKeys.forEach(key => {
-            if (!headerData[key] || !headerData[key].trim()) {
+            const value = headerData[key];
+            if (!value || (typeof value === 'string' && !value.trim())) {
                 newErrors.add(key);
             }
         });
@@ -715,7 +906,8 @@ const DfrStandard = ({ onBack, initialData }: DfrStandardProps): ReactElement =>
         const requiredBodyKeys: (keyof DfrStandardBodyData)[] = ['communication', 'weatherAndGroundConditions', 'environmentalProtection', 'wildlifeObservations', 'furtherRestoration'];
         requiredBodyKeys.forEach(key => {
             // @ts-ignore
-            if (!bodyData[key] || !bodyData[key].trim()) {
+            const value = bodyData[key];
+            if (!value || (typeof value === 'string' && !value.trim())) {
                 newErrors.add(key);
             }
         });
@@ -727,6 +919,7 @@ const DfrStandard = ({ onBack, initialData }: DfrStandardProps): ReactElement =>
             if (!photo.location) newErrors.add(`${prefix}location`);
             if (!photo.description) newErrors.add(`${prefix}description`);
             if (!photo.imageUrl) newErrors.add(`${prefix}imageUrl`);
+            if (!photo.isMap && !photo.direction) newErrors.add(`${prefix}direction`);
         });
 
         setErrors(newErrors);
@@ -811,7 +1004,7 @@ const DfrStandard = ({ onBack, initialData }: DfrStandardProps): ReactElement =>
                 {label: 'LOCATION:', value: headerData.location},
             ];
             const col2Fields = [
-                {label: 'X-TES PROJECT #:', value: headerData.projectNumber},
+                {label: 'Project #:', value: headerData.projectNumber},
                 {label: 'MONITOR:', value: headerData.monitor},
                 {label: `${headerData.envFileType}:`, value: headerData.envFileValue},
             ];
@@ -863,7 +1056,7 @@ const DfrStandard = ({ onBack, initialData }: DfrStandardProps): ReactElement =>
         const drawDfrHeader = (docInstance: any) => {
             const headerContentStartY = contentMargin;
 
-            const logoUrl = "https://ik.imagekit.io/fzpijprte/XTerraLogo2019_Horizontal.jpg?updatedAt=1758827714962";
+            const logoUrl = "/assets/xterra-logo.jpg";
             docInstance.addImage(logoUrl, 'JPEG', contentMargin, headerContentStartY, 40, 10);
             
             docInstance.setFontSize(18);
@@ -885,7 +1078,7 @@ const DfrStandard = ({ onBack, initialData }: DfrStandardProps): ReactElement =>
 
             const headerContentStartY = contentMargin;
 
-            const logoUrl = "https://ik.imagekit.io/fzpijprte/XTerraLogo2019_Horizontal.jpg?updatedAt=1758827714962";
+            const logoUrl = "/assets/xterra-logo.jpg";
             docInstance.addImage(logoUrl, 'JPEG', contentMargin, headerContentStartY, 40, 10);
 
             docInstance.setFontSize(18);
@@ -1256,7 +1449,9 @@ const DfrStandard = ({ onBack, initialData }: DfrStandardProps): ReactElement =>
             doc.text(`Page ${i} of ${totalPages}`, pageWidth - borderMargin, footerTextY, { align: 'right' });
         }
         
-        doc.save(filename);
+        const pdfBlob = doc.output('blob');
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        setPdfPreview({ url: pdfUrl, filename });
     };
 
     const getHeaderErrors = (): Set<keyof DfrHeaderData> => {
@@ -1282,9 +1477,17 @@ const DfrStandard = ({ onBack, initialData }: DfrStandardProps): ReactElement =>
     
     return (
         <div className="bg-gray-100 min-h-screen">
+            {pdfPreview && (
+                <PdfPreviewModal 
+                    url={pdfPreview.url} 
+                    filename={pdfPreview.filename} 
+                    onClose={() => setPdfPreview(null)} 
+                />
+            )}
             {enlargedImageUrl && (
                 <ImageModal imageUrl={enlargedImageUrl} onClose={() => setEnlargedImageUrl(null)} />
             )}
+            {showStatusModal && <ActionStatusModal message={statusMessage} />}
             <SpecialCharacterPalette />
             <div className="max-w-7xl mx-auto p-4 md:p-8">
                 {showMigrationNotice && (
@@ -1305,15 +1508,14 @@ const DfrStandard = ({ onBack, initialData }: DfrStandardProps): ReactElement =>
                     </div>
                 )}
                 <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
-                     <button onClick={onBack} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200">
+                    <button onClick={onBack} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200">
                         <ArrowLeftIcon /> <span>Home</span>
                     </button>
-                    <h1 className="text-2xl font-bold text-gray-700">Daily Field Report</h1>
                     <div className="flex flex-wrap justify-end gap-2">
                         <button onClick={handleOpenProject} className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200">
-                            <FolderOpenIcon /> <span>Open</span>
+                            <FolderOpenIcon /> <span>Open Project</span>
                         </button>
-                        <input
+                         <input
                             type="file"
                             ref={fileInputRef}
                             onChange={handleFileSelected}
@@ -1321,29 +1523,35 @@ const DfrStandard = ({ onBack, initialData }: DfrStandardProps): ReactElement =>
                             accept=".dfr"
                         />
                         <button onClick={handleSaveProject} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200">
-                            <SaveIcon /> <span>Save</span>
+                            <SaveIcon /> <span>Save Project</span>
                         </button>
+                        {/* @ts-ignore */}
+                        {!window.electronAPI && (
+                            <button onClick={handleDownloadPhotos} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200">
+                                <FolderArrowDownIcon /> <span>Download Photos</span>
+                            </button>
+                        )}
                         <button onClick={handleSavePdf} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200">
-                            <DownloadIcon /> <span>Save PDF</span>
+                            <DownloadIcon /> <span>Save to PDF</span>
                         </button>
                     </div>
                 </div>
-
-                <div className="space-y-8">
-                    <DfrHeader data={headerData} onDataChange={handleHeaderChange} placeholders={dfrPlaceholders.header} errors={getHeaderErrors()} />
+                
+                <div className="main-content space-y-8">
+                    <DfrHeader data={headerData} onDataChange={handleHeaderChange} errors={getHeaderErrors()} placeholders={dfrPlaceholders.header} />
                     
                     <Section title="Project Activities">
-                        <div className="space-y-4">
-                            <BulletPointEditor
-                                label="General Project Activity (detailed description with timestamps)"
-                                value={bodyData.generalActivity}
-                                onChange={handleGeneralActivityChange}
-                                rows={8}
-                                placeholder={dfrPlaceholders.body.generalActivity}
-                                isInvalid={errors.has('generalActivity')}
-                            />
+                         <BulletPointEditor 
+                            label="General Activity"
+                            value={bodyData.generalActivity} 
+                            onChange={handleGeneralActivityChange} 
+                            rows={15} 
+                            placeholder={dfrPlaceholders.body.generalActivity}
+                            isInvalid={errors.has('generalActivity')}
+                        />
+                         <div className="space-y-4">
                             {bodyData.locationActivities.map((block, index) => (
-                                <LocationBlockEntry
+                                <LocationBlockEntry 
                                     key={block.id}
                                     data={block}
                                     onDataChange={updateLocationActivity}
@@ -1354,28 +1562,29 @@ const DfrStandard = ({ onBack, initialData }: DfrStandardProps): ReactElement =>
                                 />
                             ))}
                         </div>
-                        <div className="flex justify-center mt-4 gap-4">
-                            <button
-                                onClick={() => addLocationActivity()}
-                                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200"
-                            >
-                                <PlusIcon className="h-5 w-5" />
-                                <span>Add Location Activity</span>
+                        <div className="text-center">
+                            <button onClick={addLocationActivity} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 transition duration-200">
+                                <PlusIcon />
+                                <span>Add Location-Specific Activity</span>
                             </button>
                         </div>
                     </Section>
+
+                    <Section title="Communications & Conditions">
+                        <BulletPointEditor label="Communication" value={bodyData.communication} onChange={v => handleBodyDataChange('communication', v)} rows={3} placeholder={dfrPlaceholders.body.communication} isInvalid={errors.has('communication')}/>
+                        <BulletPointEditor label="Weather and Ground Conditions" value={bodyData.weatherAndGroundConditions} onChange={v => handleBodyDataChange('weatherAndGroundConditions', v)} rows={3} placeholder={dfrPlaceholders.body.weatherAndGroundConditions} isInvalid={errors.has('weatherAndGroundConditions')}/>
+                    </Section>
                     
-                    <Section title="Site Conditions & Observations">
-                         <BulletPointEditor label="Communication:" value={bodyData.communication} onChange={v => handleBodyDataChange('communication', v)} rows={3} placeholder={dfrPlaceholders.body.communication} isInvalid={errors.has('communication')} />
-                         <BulletPointEditor label="Weather and Ground Conditions:" value={bodyData.weatherAndGroundConditions} onChange={v => handleBodyDataChange('weatherAndGroundConditions', v)} rows={3} placeholder={dfrPlaceholders.body.weatherAndGroundConditions} isInvalid={errors.has('weatherAndGroundConditions')} />
-                         <BulletPointEditor label="Environmental Protection Measures and Mitigation:" value={bodyData.environmentalProtection} onChange={v => handleBodyDataChange('environmentalProtection', v)} rows={3} placeholder={dfrPlaceholders.body.environmentalProtection} isInvalid={errors.has('environmentalProtection')} />
-                         <BulletPointEditor label="Wildlife Observations:" value={bodyData.wildlifeObservations} onChange={v => handleBodyDataChange('wildlifeObservations', v)} rows={3} placeholder={dfrPlaceholders.body.wildlifeObservations} isInvalid={errors.has('wildlifeObservations')} />
-                         <BulletPointEditor label="Further Restoration or Monitoring Required:" value={bodyData.furtherRestoration} onChange={v => handleBodyDataChange('furtherRestoration', v)} rows={3} placeholder={dfrPlaceholders.body.furtherRestoration} isInvalid={errors.has('furtherRestoration')} />
+                    <Section title="Environmental & Wildlife">
+                         <BulletPointEditor label="Environmental Protection Measures & Mitigation" value={bodyData.environmentalProtection} onChange={v => handleBodyDataChange('environmentalProtection', v)} rows={7} placeholder={dfrPlaceholders.body.environmentalProtection} isInvalid={errors.has('environmentalProtection')} />
+                         <BulletPointEditor label="Wildlife Observations" value={bodyData.wildlifeObservations} onChange={v => handleBodyDataChange('wildlifeObservations', v)} rows={3} placeholder={dfrPlaceholders.body.wildlifeObservations} isInvalid={errors.has('wildlifeObservations')}/>
+                         <BulletPointEditor label="Further Restoration or Monitoring Required" value={bodyData.furtherRestoration} onChange={v => handleBodyDataChange('furtherRestoration', v)} rows={3} placeholder={dfrPlaceholders.body.furtherRestoration} isInvalid={errors.has('furtherRestoration')} />
                     </Section>
 
                     <div className="border-t-4 border-[#007D8C] my-10" />
-                    <h2 className="text-3xl font-bold text-gray-700 text-center">Photographic Log</h2>
 
+                    <h2 className="text-3xl font-bold text-gray-700 text-center">Photographic Log</h2>
+                    
                     <div>
                         {photosData.map((photo, index) => (
                            <div key={photo.id}>
@@ -1391,10 +1600,9 @@ const DfrStandard = ({ onBack, initialData }: DfrStandardProps): ReactElement =>
                                     onImageClick={setEnlargedImageUrl}
                                     errors={getPhotoErrors(photo.id)}
                                     showDirectionField={!photo.isMap}
-                                    isLocationLocked={false}
                                 />
                                 {index < photosData.length - 1 && (
-                                    <div className="relative my-6 flex items-center justify-center">
+                                     <div className="relative my-6 flex items-center justify-center">
                                         <div className="absolute inset-0 flex items-center" aria-hidden="true">
                                             <div className="w-full border-t-2 border-gray-300"></div>
                                         </div>
@@ -1402,10 +1610,9 @@ const DfrStandard = ({ onBack, initialData }: DfrStandardProps): ReactElement =>
                                             <button
                                                 onClick={() => addPhoto(false, index)}
                                                 className="bg-white hover:bg-gray-100 text-[#007D8C] font-bold py-2 px-4 rounded-full border border-gray-300 inline-flex items-center gap-2 transition duration-200 shadow-sm"
-                                                aria-label={`Add new site photo after photo ${index + 1}`}
                                             >
                                                 <PlusIcon />
-                                                <span>Add Site Photo Here</span>
+                                                <span>Add Photo Here</span>
                                             </button>
                                         </div>
                                     </div>
@@ -1413,25 +1620,28 @@ const DfrStandard = ({ onBack, initialData }: DfrStandardProps): ReactElement =>
                             </div>
                         ))}
                     </div>
-                    
+
                     <div className="mt-8 flex justify-center gap-4">
                         <button
                             onClick={() => addPhoto(false)}
                             className="bg-[#007D8C] hover:bg-[#006b7a] text-white font-bold py-3 px-6 rounded-lg shadow-md inline-flex items-center gap-2 transition duration-200 text-lg"
                         >
                             <PlusIcon />
-                            <span>Add Site Photo</span>
+                            <span>Add Photo</span>
                         </button>
                          <button
                             onClick={() => addPhoto(true)}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg shadow-md inline-flex items-center gap-2 transition duration-200 text-lg"
+                            className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg shadow-md inline-flex items-center gap-2 transition duration-200 text-lg"
                         >
                             <PlusIcon />
-                            <span>Add Map Photo</span>
+                            <span>Add Map</span>
                         </button>
                     </div>
-
                 </div>
+                {photosData.length > 0 && <div className="border-t-4 border-[#007D8C] my-8" />}
+                <footer className="text-center text-gray-500 text-sm py-4">
+                    X-TES Digital Reporting v1.0.2
+                </footer>
             </div>
             {showUnsupportedFileModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 transition-opacity duration-300">
@@ -1483,7 +1693,7 @@ const DfrStandard = ({ onBack, initialData }: DfrStandardProps): ReactElement =>
                     </div>
                 </div>
             )}
-            {showNoInternetModal && (
+             {showNoInternetModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
                     <div className="bg-white p-8 rounded-lg shadow-2xl text-center relative max-w-md">
                         <button
@@ -1504,4 +1714,5 @@ const DfrStandard = ({ onBack, initialData }: DfrStandardProps): ReactElement =>
     );
 };
 
+// FIX: Add default export for the DfrStandard component.
 export default DfrStandard;
