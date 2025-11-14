@@ -144,13 +144,17 @@ export const DfrHeader: React.FC<HeaderProps> = ({ data, onDataChange, isPrintab
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
                     <div className="flex flex-col gap-y-2">
                         <EditableField label="DATE" value={data.date} onChange={(v) => onDataChange('date', v)} isPrintable={isPrintable} isInvalid={errors?.has('date')} placeholder="October 1, 2025" />
-                        <EditableField label="PROPONENT" value={data.proponent} onChange={(v) => onDataChange('proponent', v)} isPrintable={isPrintable} isInvalid={errors?.has('proponent')} placeholder={placeholders.proponent} />
-                        <EditableField label="LOCATION" value={data.location} onChange={(v) => onDataChange('location', v)} isPrintable={isPrintable} isInvalid={errors?.has('location')} isTextArea placeholder={placeholders.location}/>
+                        {/* FIX: Use optional chaining to safely access placeholder properties. */}
+                        <EditableField label="PROPONENT" value={data.proponent} onChange={(v) => onDataChange('proponent', v)} isPrintable={isPrintable} isInvalid={errors?.has('proponent')} placeholder={placeholders?.proponent} />
+                        {/* FIX: Use optional chaining to safely access placeholder properties. */}
+                        <EditableField label="LOCATION" value={data.location} onChange={(v) => onDataChange('location', v)} isPrintable={isPrintable} isInvalid={errors?.has('location')} isTextArea placeholder={placeholders?.location}/>
                     </div>
 
                     <div className="flex flex-col gap-y-2">
-                        <EditableField label="Project #" value={data.projectNumber} onChange={(v) => onDataChange('projectNumber', v)} isPrintable={isPrintable} isInvalid={errors?.has('projectNumber')} placeholder={placeholders.projectNumber} />
-                        <EditableField label="MONITOR" value={data.monitor} onChange={(v) => onDataChange('monitor', v)} isPrintable={isPrintable} isInvalid={errors?.has('monitor')} placeholder={placeholders.monitor} />
+                        {/* FIX: Use optional chaining to safely access placeholder properties. */}
+                        <EditableField label="Project #" value={data.projectNumber} onChange={(v) => onDataChange('projectNumber', v)} isPrintable={isPrintable} isInvalid={errors?.has('projectNumber')} placeholder={placeholders?.projectNumber} />
+                        {/* FIX: Use optional chaining to safely access placeholder properties. */}
+                        <EditableField label="MONITOR" value={data.monitor} onChange={(v) => onDataChange('monitor', v)} isPrintable={isPrintable} isInvalid={errors?.has('monitor')} placeholder={placeholders?.monitor} />
                         <SelectableLabelField
                             labelType={data.envFileType}
                             value={data.envFileValue}
@@ -158,12 +162,14 @@ export const DfrHeader: React.FC<HeaderProps> = ({ data, onDataChange, isPrintab
                             onValueChange={(v) => onDataChange('envFileValue', v)}
                             isPrintable={isPrintable}
                             isInvalid={errors?.has('envFileValue')}
-                            placeholder={placeholders.envFileValue}
+                            // FIX: Use optional chaining to safely access placeholder properties.
+                            placeholder={placeholders?.envFileValue}
                         />
                     </div>
 
                     <div className="md:col-span-2">
-                        <EditableField label="PROJECT NAME" value={data.projectName} onChange={(v) => onDataChange('projectName', v)} isPrintable={isPrintable} isInvalid={errors?.has('projectName')} isTextArea placeholder={placeholders.projectName} />
+                        {/* FIX: Use optional chaining to safely access placeholder properties. */}
+                        <EditableField label="PROJECT NAME" value={data.projectName} onChange={(v) => onDataChange('projectName', v)} isPrintable={isPrintable} isInvalid={errors?.has('projectName')} isTextArea placeholder={placeholders?.projectName} />
                     </div>
                 </div>
             </div>

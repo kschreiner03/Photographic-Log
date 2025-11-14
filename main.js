@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
+const { app, autoUpdater, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -197,6 +197,48 @@ function createWindow() {
 
 // --- Handle file operations ---
 app.whenReady().then(() => {
+  // --- Auto-update logic ---
+  // Replaces the 'update-electron-app' package with a direct implementation
+  // to avoid module resolution issues in the packaged app.
+  try {
+    const server = 'https://update.electronjs.org';
+    // The repository details are from your package.json
+    const repo = 'kschreiner03/XTES-Digital-Reporting';
+    const feedURL = `${server}/${repo}/${process.platform}/${app.getVersion()}`;
+
+    autoUpdater.setFeedURL({ url: feedURL });
+
+    // Check for updates every hour
+    setInterval(() => {
+      autoUpdater.checkForUpdates();
+    }, 60 * 60 * 1000);
+    
+    // Check for updates on startup as well
+    autoUpdater.checkForUpdates();
+
+    autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
+      const dialogOpts = {
+        type: 'info',
+        buttons: ['Restart', 'Later'],
+        title: 'Application Update',
+        message: releaseName,
+        detail: 'A new version has been downloaded. Restart the application to apply the updates.'
+      };
+
+      dialog.showMessageBox(dialogOpts).then((returnValue) => {
+        if (returnValue.response === 0) autoUpdater.quitAndInstall();
+      });
+    });
+
+    autoUpdater.on('error', (error) => {
+      // Silently log errors. Don't bother the user.
+      console.error('There was a problem updating the application');
+      console.error(error);
+    });
+  } catch (error) {
+    console.error('Error setting up auto-updater:', error.message);
+  }
+
   const menu = Menu.buildFromTemplate(menuTemplate);
   Menu.setApplicationMenu(menu);
 

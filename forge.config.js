@@ -38,6 +38,15 @@ module.exports = {
       },
     }
   ],
+  publishers: [
+    {
+      name: '@electron-forge/publisher-electron-release-server',
+      config: {
+        baseUrl: 'https://update.electronjs.org',
+        repo: 'kschreiner03/XTES-Digital-Reporting'
+      }
+    }
+  ],
   plugins: [
     {
       name: '@electron-forge/plugin-vite',
